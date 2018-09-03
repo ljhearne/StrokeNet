@@ -5,15 +5,17 @@ rm(list=ls())
 
 library("FactoMineR")
 library("factoextra")
-library("parallel")
 
 # HARDCODED VARIABLES------------#
-IN = "/projects/sw49/Results/MCA/MCAinput.csv"
-IN2 = '/projects/sw49/Results/MCA/MCAcomp.csv'
-OUT= "/projects/sw49/Results/MCA/"
-# -------------------------------#
+# have not found a sensible way of calling R from matlab with variables...
+#IN = "/projects/sw49/Results/MCA/MCAinput.csv"
+#IN2 = '/projects/sw49/Results/MCA/MCAcomp.csv'
+#OUT= "/projects/sw49/Results/MCA/"
 
-start.time = Sys.time()
+IN = "/Users/luke/Documents/Projects/StrokeNet/Docs/Results/MCA/MCAinput.csv"
+IN2 = '/Users/luke/Documents/Projects/StrokeNet/Docs/Results/MCA/MCAcomp.csv'
+OUT= "/Users/luke/Documents/Projects/StrokeNet/Docs/Results/MCA/"
+# -------------------------------#
 
 #------------------------------------------------------------
 comps = read.csv(IN2)
@@ -33,7 +35,3 @@ write.csv(VAR$coord, file = paste(OUT,"MCA_VarWeights.csv",sep=""))
 eig.val = get_eigenvalue(result) #get variance explained
 write.csv(eig.val, file = paste(OUT,"MCA_Eigenvalues.csv",sep=""))
 #------------------------------------------------------------
-
-end.time = Sys.time()
-time.taken = end.time - start.time
-time.taken

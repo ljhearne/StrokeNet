@@ -1,12 +1,14 @@
 %% Summary
 % explanation
 
-%NOTE: a key function 'load_stroke_behav' is hard coded. Please edit as
-%appropriate.
+%NOTE: some paths in 'load_stroke_behav' are hard coded, as well as the R
+%MCA script. Please edit as appropriate.
 
-% TO DO/ Things to consider: Other behavioural variables that we might need
+% TO DO
+% - Other behavioural variables that we might need
 % to control for and/or exclude. First language? Chronicity (could be
 % regressed)? Previous strokes?
+% - normalizing the lesion maps to MNI152 space
 
 clearvars
 close all
@@ -84,28 +86,47 @@ disp(['Average connectome density pre = ',num2str(mean(density.pre)),...
 
 % Actual lesions
 [~,template] = read([DocsPath,'Atlas/Schaefer200_plus_HOAAL']); %link to template
+template = resize_nii(template,[181,217,181]); %when transformed this will change.
+%overlap = zeros(size(template));
+overlap = zeros(181,217,181); % will be corrected in future
 for p = 1:length(P_ID)
-   % [hdr,tmp] = read([DataPath,'lesionMaps/3_Nii_interp/',P_ID{i},'_interp.nii']);
+    f = [DataPath,'lesionMaps/3_Nii_interp/',P_ID{p},'_interp.nii'];
+    [~,tmp] = read(f); % we know these aren't correct.
+    overlap = tmp + overlap;
     
+    % count networks
+    for i = 1:max(Yeo8Index)
+        roi = find(Yeo8Index==i); % find rois within network
+        
+        idx = zeros(size(template));
+        for j = 1:length(roi)
+            idx = idx + (template == roi(j));
+        end
+        
+        FuncMap.Lesion(p,i) = sum(tmp(logical(idx)));
+    end
     
-% should also calculate overlap with a WM mask - this would be of interest
-% to the corbetta train of thought.
+    % should also calculate overlap with a WM mask - this would be of interest
+    % to the corbetta train of thought.
 end
 
+% save the overlap nifti for visualization outside of matlab
+mat2nii(overlap,[DocsPath,'Results/LesionOverlap.nii'],size(overlap),32,f) 
+mat2nii(template,[DocsPath,'Results/template.nii'],size(overlap),32,f) 
 % Connectivity lesions
+
 for p = 1:length(P_ID)
-    
-    tmp = Cdiff(:,:,p) > 0; %binary - could also do weighted
-    tmp = tmp+tmp'; %symmetrize
-    
-    for i = 1:max(Yeo8Index)
-        for j = 1:max(Yeo8Index)
-            idxR = Yeo8Index==i;
-            idxC = Yeo8Index==j;
-            FuncMap.conn(i,j,p) = sum(sum(tmp(idxR,idxC)));    
-        end
-    end
+    FuncMap.conn(:,:,p) = mapNetworkConn(Cdiff(:,:,p)>0,Yeo8Index);
 end
+
+%% MCA
+% lesion affection = 5;
+% number of components = 5;
+
+MCA = run_MCA(Cdiff,5,5,DocsPath);
+
+%% CCA
+
 
 %% Figure 1. Functional network mapping
 close all
@@ -114,7 +135,12 @@ figure('Color','w','Position',[450 450 600 250]); hold on
 labels = {'Vis';'SM';'DAN';'Sal';'Lim';'FPN';'DMN';'SubC';'Cer'};
 subplot(1,2,1)
 
+boxplot(FuncMap.Lesion,'PlotStyle','compact','symbol','','Colors','k')
+
+set(gca,'XTick',1:9,'XTickLabel', labels);
 title('A.');
+xtickangle(45);
+ylim([0 4000]);
 
 subplot(1,2,2)
 h = imagesc(mean(FuncMap.conn,3));
@@ -122,4 +148,52 @@ colorbar
 set(gca,'TickLength',[0 0])
 set(gca,'YTick',1:9,'YTickLabel', labels);
 set(gca,'XTick',1:9,'XTickLabel', labels);
+xtickangle(45)
 title('B.');
+
+% connectome representation of lesion overlap map
+figure('Color','w','Position',[450 450 300 450]); hold on
+draw_connectome(sum(Cdiff,3),COG,100,120,1);
+axis off
+
+%% Figure 2: MCA results
+
+figure('Color','w','pos',[100 600 800 400]);
+idx = find(MCA.Connindex);
+comps = size(MCA.VarWeightsE,2);
+for i = 1:comps
+    % connectome plot
+    subplot(3,comps,[i,comps+i])
+    MAT = zeros(size(Cdiff,1),size(Cdiff,1));
+    MAT(idx) = MCA.VarWeightsE(:,i);
+    draw_connectome(MAT,COG,100,80,0.1);
+    xlabel(['MCA Component : ',num2str(i)])
+    axis off
+    
+    %network plot
+    subplot(3,comps,i+comps*2)
+    MATnet = mapNetworkConn(MAT,Yeo8Index);
+    imagesc(MATnet);
+    set(gca,'TickLength',[0 0])
+    set(gca,'YTick',1:9,'YTickLabel', labels);
+    set(gca,'XTick',1:9,'XTickLabel', labels);
+    xtickangle(45)
+end
+
+%% Figure 3: CCA
+
+
+%% Supplementary Figures
+
+%% Figure 1:
+figure('Color','w','pos',[100 600 300 300]);
+scatter3(MCA.IndWeights(:,1),MCA.IndWeights(:,2),MCA.IndWeights(:,3),...
+    50,MCA.IndWeights(:,1),'filled'); hold on
+xlabel('MCA Component 1')
+ylabel('MCA Component 2')
+zlabel('MCA Component 3')
+
+for i = [50,60] % two data points to highlight
+scatter3(MCA.IndWeights(i,1),MCA.IndWeights(i,2),MCA.IndWeights(i,3),...
+    150,'r'); hold on
+end
