@@ -20,12 +20,12 @@ SampSize = size(Cdiff,3);
 MCA.Connindex = sum(Cdiff>0,3)>lesion_affection; %index informative voxels
 for i = 1:SampSize
     tmp = Cdiff(:,:,i)>0; %binarize
-    Conn(i,:) = tmp(MCA.Connindex);
+    MCA.Conn(i,:) = tmp(MCA.Connindex);
 end
-disp([num2str(length(Conn)),' connections considered in MCA']);
+disp([num2str(length(MCA.Conn)),' connections considered in MCA']);
 
 % Performs MCA via R.
-csvwrite([DocsPath,'Results/MCA/MCAinput.csv'],double(Conn));
+csvwrite([DocsPath,'Results/MCA/MCAinput.csv'],double(MCA.Conn));
 csvwrite([DocsPath,'Results/MCA/MCAcomp.csv'],[0,0;0,double(comps)]);
 
 %system('Rscript MCAR.R')

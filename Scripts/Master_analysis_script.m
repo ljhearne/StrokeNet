@@ -9,6 +9,11 @@
 % to control for and/or exclude. First language? Chronicity (could be
 % regressed)? Previous strokes?
 % - normalizing the lesion maps to MNI152 space
+% - coding a CLIMS function for the connectome drawing function so that
+% colors are even across all comparisons (although if I use other software
+% there is no need).
+% - save all figures to results.
+% - corbetta white matter idea.
 
 clearvars
 close all
@@ -21,7 +26,7 @@ addpath('functions');
 
 %% inputs
 dataType = 'conbound15/'; %data type
-parcLabel = '240'; % label for parcellation
+parcLabel = '140'; % label for parcellation
 behav.variables = [3,4,8,10,11,12,70,31]; % see 'key' variable for further info.
 
 % load data
@@ -85,7 +90,7 @@ disp(['Average connectome density pre = ',num2str(mean(density.pre)),...
 %% Lesion functional network mapping
 
 % Actual lesions
-[~,template] = read([DocsPath,'Atlas/Schaefer200_plus_HOAAL']); %link to template
+[~,template] = read([DocsPath,'Atlas/Schaefer100_plus_HOAAL']); %link to template
 template = resize_nii(template,[181,217,181]); %when transformed this will change.
 %overlap = zeros(size(template));
 overlap = zeros(181,217,181); % will be corrected in future
@@ -126,8 +131,14 @@ end
 MCA = run_MCA(Cdiff,5,5,DocsPath);
 
 %% CCA
+% x = behaviours we are interested in (NART,APM,VOSP,CANC,LANG)
+% y = the individual MCA loadings from previous step
 
+x = behav.dataTF(:,4:end);
+[CCA.A, CCA.B, CCA.R, CCA.U, CCA.V, CCA.stats]=canoncorr(x,MCA.IndWeights);
+disp(['p values for each CCA mode: ',num2str(CCA.stats.p)]);
 
+CCA.conload = corr(x,CCA.V);
 %% Figure 1. Functional network mapping
 close all
 
@@ -159,11 +170,88 @@ axis off
 %% Figure 2: MCA results
 
 figure('Color','w','pos',[100 600 800 400]);
+
+labels = {'Vis';'SM';'DAN';'Sal';'Lim';'FPN';'DMN';'SubC';'Cer'};
 idx = find(MCA.Connindex);
 comps = size(MCA.VarWeightsE,2);
 for i = 1:comps
     % connectome plot
     subplot(3,comps,[i,comps+i])
+    title(['Component ',num2str(i)]);
+    MAT = zeros(size(Cdiff,1),size(Cdiff,1));
+    MAT(idx) = MCA.VarWeightsE(:,i);
+    draw_connectome(MAT,COG,100,80,0.1,1,100,1);
+    xlabel(['MCA Component : ',num2str(i)])
+    axis off
+    
+    %network plot
+    subplot(3,comps,i+comps*2)
+    MATnet = mapNetworkConn(MAT,Yeo8Index);
+    imagesc(MATnet);
+    set(gca,'TickLength',[0 0])
+    set(gca,'YTick',1:9,'YTickLabel', labels);
+    set(gca,'XTick',1:9,'XTickLabel', labels);
+    xtickangle(45)
+end
+
+% output results for neurmarvl
+    % top 100 from each component - give each component a different edge
+    % weight. Colour by network.
+    
+%% Figure 3: CCA
+% construct loadings.
+figure('Color','w','pos',[100 600 400 200]);
+labels = {'Vis';'SM';'DAN';'Sal';'Lim';'FPN';'DMN';'SubC';'Cer'};
+Blabels = {'NART','APM','IL','CANC','LANG'};
+idx = find(MCA.Connindex);
+for i = 1:2
+    % construct loadings
+    subplot(1,2,i)
+    barh(CCA.conload(:,i),'FaceColor',[0.5 0.5 0.5]);
+    set(gca,'YTick',1:5,'YTickLabel', Blabels);
+    xlabel('Loading');
+    xlim([-.6 .6])
+    ylim([0.4 5.5])
+    box off
+    title(['Mode ',num2str(i),' behaviour loadings']);
+end
+
+figure('Color','w','pos',[100 600 400 600]);
+for i = 1:2
+    % mode in brain space
+    subplot(4,2,[i,i+2])
+    title(['Mode ',num2str(i),' top connections']);
+    Mode = corr(CCA.V(:,i),MCA.Conn)';
+    MAT = zeros(size(Cdiff,1),size(Cdiff,1));
+    MAT(idx) = Mode;
+    
+    % draw top 100/bottom 100 only
+    draw_connectome(MAT,COG,100,120,0.2,1,100,1);
+    axis off
+    
+    subplot(4,2,i+4)
+    draw_connectome(MAT,COG,100,60,0.2,2,100,1);
+    axis off
+    
+    subplot(4,2,i+6)
+    MATnet = mapNetworkConn(MAT,Yeo8Index);
+    imagesc(MATnet);
+    set(gca,'TickLength',[0 0])
+    set(gca,'YTick',1:9,'YTickLabel', labels);
+    set(gca,'XTick',1:9,'XTickLabel', labels);
+    xtickangle(45) 
+end
+
+
+%% SFigure 1: Dimensions of the MCA
+figure('Color','w','pos',[100 600 800 400]);
+labels = {'Vis';'SM';'DAN';'Sal';'Lim';'FPN';'DMN';'SubC';'Cer'};
+idx = find(MCA.Connindex);
+comps = size(MCA.VarWeightsE,2);
+for i = 1:comps
+    % connectome plot
+    subplot(3,comps,[i,comps+i])
+    title(['Component ',num2str(i)]);
     MAT = zeros(size(Cdiff,1),size(Cdiff,1));
     MAT(idx) = MCA.VarWeightsE(:,i);
     draw_connectome(MAT,COG,100,80,0.1);
@@ -179,14 +267,8 @@ for i = 1:comps
     set(gca,'XTick',1:9,'XTickLabel', labels);
     xtickangle(45)
 end
-
-%% Figure 3: CCA
-
-
-%% Supplementary Figures
-
-%% Figure 1:
-figure('Color','w','pos',[100 600 300 300]);
+figure('Color','w','pos',[100 600 900 300]);
+subplot(1,3,2)
 scatter3(MCA.IndWeights(:,1),MCA.IndWeights(:,2),MCA.IndWeights(:,3),...
     50,MCA.IndWeights(:,1),'filled'); hold on
 xlabel('MCA Component 1')
@@ -196,4 +278,42 @@ zlabel('MCA Component 3')
 for i = [50,60] % two data points to highlight
 scatter3(MCA.IndWeights(i,1),MCA.IndWeights(i,2),MCA.IndWeights(i,3),...
     150,'r'); hold on
+end
+view(35,25)
+
+subplot(1,3,1)
+[I,map] = imread([DocsPath,'Results/MCA/P128_example'],'png');
+imshow(I,map);
+title('Low MCA dimension 1 value Sub');
+
+subplot(1,3,3)
+[I,map] = imread([DocsPath,'Results/MCA/P158_example'],'png');
+imshow(I,map);
+title('High MCA dimension 1 value Sub');
+
+%% SFigure2: Fully weighted modes
+figure('Color','w','pos',[100 600 400 600]);
+for i = 1:2
+    % mode in brain space
+    subplot(4,2,[i,i+2])
+    title(['Mode ',num2str(i),' weighted']);
+    Mode = corr(CCA.V(:,i),MCA.Conn)';
+    MAT = zeros(size(Cdiff,1),size(Cdiff,1));
+    MAT(idx) = Mode;
+    
+    % draw top 100/bottom 100 only
+    draw_connectome(MAT,COG,100,120,0.2);
+    axis off
+    
+    subplot(4,2,i+4)
+    draw_connectome(MAT,COG,100,60,0.2,2);
+    axis off
+    
+    subplot(4,2,i+6)
+    MATnet = mapNetworkConn(MAT,Yeo8Index);
+    imagesc(MATnet);
+    set(gca,'TickLength',[0 0])
+    set(gca,'YTick',1:9,'YTickLabel', labels);
+    set(gca,'XTick',1:9,'XTickLabel', labels);
+    xtickangle(45) 
 end
