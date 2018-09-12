@@ -4,6 +4,7 @@ function MCA = run_MCA(Cdiff,lesion_affection,comps,DocsPath)
 %The R code is hard-coded regarding some paths (I don't know of a way to
 % pass arguments from matlab to R).
 %
+%run_MCA(Cdiff,lesion_affection,comps,DocsPath)
 % Cdiff = lesion difference maps (node x node x subj);
 %
 % lesion_affection = how many participants need to be lesioned at this edge

@@ -11,10 +11,21 @@
 % - normalizing the lesion maps to MNI152 space
 % - coding a CLIMS function for the connectome drawing function so that
 % colors are even across all comparisons (although if I use other software
-% there is no need).
+% there is no need). In addition, showing histograms of the weights would
+% be informative. + figures showing the actual CCA plot (i.e. correlation).
+% + a MCAcomponent loading bar graph? + do the 'component space' figure for
+% first three components + plot variance accounted for
 % - save all figures to results.
 % - corbetta white matter idea.
-
+% - correlate communicability loss and the ind CCA weights. (expect
+% correlation in Mode 1 but not Mode 2). Result - less clear in the first
+% mode (althought I think it looks sensible. Second mode has a clear
+% effect. I wonder if the whole thing could be account for by degree, and
+% if that is an issue.
+% - leave one out prediction with CCA. Do they CCA on all - 1 participants
+% then use the weights to predict the behaviour? Correlate the behaviour
+% with the predicted behaviour to get fit
+% - nice CCA explanation https://stats.stackexchange.com/questions/65692/how-to-visualize-what-canonical-correlation-analysis-does-in-comparison-to-what
 clearvars
 close all
 
@@ -26,7 +37,7 @@ addpath('functions');
 
 %% inputs
 dataType = 'conbound15/'; %data type
-parcLabel = '140'; % label for parcellation
+parcLabel = '240'; % label for parcellation
 behav.variables = [3,4,8,10,11,12,70,31]; % see 'key' variable for further info.
 
 % load data
@@ -97,6 +108,7 @@ overlap = zeros(181,217,181); % will be corrected in future
 for p = 1:length(P_ID)
     f = [DataPath,'lesionMaps/3_Nii_interp/',P_ID{p},'_interp.nii'];
     [~,tmp] = read(f); % we know these aren't correct.
+    lesionSize(p) = sum(sum(sum(tmp)));
     overlap = tmp + overlap;
     
     % count networks
@@ -125,10 +137,12 @@ for p = 1:length(P_ID)
 end
 
 %% MCA
-% lesion affection = 5;
+lesionAffection = 5; % I think 5 is sensible? I suppose 8 is 10%.
 % number of components = 5;
-
-MCA = run_MCA(Cdiff,5,5,DocsPath);
+comps = 5;
+tic
+MCA = run_MCA(Cdiff,lesionAffection,comps,DocsPath);
+toc
 
 %% CCA
 % x = behaviours we are interested in (NART,APM,VOSP,CANC,LANG)
@@ -138,7 +152,19 @@ x = behav.dataTF(:,4:end);
 [CCA.A, CCA.B, CCA.R, CCA.U, CCA.V, CCA.stats]=canoncorr(x,MCA.IndWeights);
 disp(['p values for each CCA mode: ',num2str(CCA.stats.p)]);
 
-CCA.conload = corr(x,CCA.V);
+CCA.conload = corr(x,CCA.U);
+% further CCA stats.
+
+
+% correlation with communicability.
+% for i = 1:size(Cdiff,3)
+%     Communic.pre(i)  = efficiency_wei(Cpre(:,:,i));
+%     Communic.post(i) = efficiency_wei(Cpost(:,:,i));
+%     Communic.diff(i) = Communic.pre(i)-Communic.post(i);
+% end
+
+
+%
 %% Figure 1. Functional network mapping
 close all
 
@@ -161,19 +187,21 @@ set(gca,'YTick',1:9,'YTickLabel', labels);
 set(gca,'XTick',1:9,'XTickLabel', labels);
 xtickangle(45)
 title('B.');
+saveas(gcf,[DocsPath,'Results/Figure1a.jpeg']);
 
 % connectome representation of lesion overlap map
 figure('Color','w','Position',[450 450 300 450]); hold on
 draw_connectome(sum(Cdiff,3),COG,100,120,1);
 axis off
 
+saveas(gcf,[DocsPath,'Results/Figure1b.jpeg']);
 %% Figure 2: MCA results
 
 figure('Color','w','pos',[100 600 800 400]);
 
 labels = {'Vis';'SM';'DAN';'Sal';'Lim';'FPN';'DMN';'SubC';'Cer'};
 idx = find(MCA.Connindex);
-comps = size(MCA.VarWeightsE,2);
+
 for i = 1:comps
     % connectome plot
     subplot(3,comps,[i,comps+i])
@@ -197,7 +225,7 @@ end
 % output results for neurmarvl
     % top 100 from each component - give each component a different edge
     % weight. Colour by network.
-    
+saveas(gcf,[DocsPath,'Results/Figure2.jpeg']); 
 %% Figure 3: CCA
 % construct loadings.
 figure('Color','w','pos',[100 600 400 200]);
@@ -210,11 +238,12 @@ for i = 1:2
     barh(CCA.conload(:,i),'FaceColor',[0.5 0.5 0.5]);
     set(gca,'YTick',1:5,'YTickLabel', Blabels);
     xlabel('Loading');
-    xlim([-.6 .6])
+    xlim([-1 1])
     ylim([0.4 5.5])
     box off
     title(['Mode ',num2str(i),' behaviour loadings']);
 end
+saveas(gcf,[DocsPath,'Results/Figure3a.jpeg']); 
 
 figure('Color','w','pos',[100 600 400 600]);
 for i = 1:2
@@ -226,7 +255,7 @@ for i = 1:2
     MAT(idx) = Mode;
     
     % draw top 100/bottom 100 only
-    draw_connectome(MAT,COG,100,120,0.2,1,100,1);
+    draw_connectome(MAT,COG,100,120,0.3,1,100,1);
     axis off
     
     subplot(4,2,i+4)
@@ -241,7 +270,7 @@ for i = 1:2
     set(gca,'XTick',1:9,'XTickLabel', labels);
     xtickangle(45) 
 end
-
+saveas(gcf,[DocsPath,'Results/Figure3b.jpeg']); 
 
 %% SFigure 1: Dimensions of the MCA
 figure('Color','w','pos',[100 600 800 400]);
@@ -267,6 +296,8 @@ for i = 1:comps
     set(gca,'XTick',1:9,'XTickLabel', labels);
     xtickangle(45)
 end
+saveas(gcf,[DocsPath,'Results/SFigure1a.jpeg']);
+
 figure('Color','w','pos',[100 600 900 300]);
 subplot(1,3,2)
 scatter3(MCA.IndWeights(:,1),MCA.IndWeights(:,2),MCA.IndWeights(:,3),...
@@ -290,7 +321,7 @@ subplot(1,3,3)
 [I,map] = imread([DocsPath,'Results/MCA/P158_example'],'png');
 imshow(I,map);
 title('High MCA dimension 1 value Sub');
-
+saveas(gcf,[DocsPath,'Results/SFigure1b.jpeg']); 
 %% SFigure2: Fully weighted modes
 figure('Color','w','pos',[100 600 400 600]);
 for i = 1:2
@@ -317,3 +348,4 @@ for i = 1:2
     set(gca,'XTick',1:9,'XTickLabel', labels);
     xtickangle(45) 
 end
+saveas(gcf,[DocsPath,'Results/SFigure2.jpeg']); 
