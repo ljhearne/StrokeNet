@@ -9,8 +9,11 @@ for i = 1:size(data,2)
     
 end
 
+%From Smith et al., HCP CCA paper.
 %We used a rank-based inverse Gaussian transformation29, to enforce
 %Gaussianity for each of the SMs, producing S2. This transformation was
 %used to avoid undue influence of potential outlier values, although we
 %later confirmed that this normalisation made almost no difference to the
 %final CCA results (see below).
+
+%Also see https://brainder.org/tag/rank-based-inverse-normal-transformation/

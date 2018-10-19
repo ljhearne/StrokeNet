@@ -5,27 +5,21 @@
 %MCA script. Please edit as appropriate.
 
 % TO DO
-% - Other behavioural variables that we might need
-% to control for and/or exclude. First language? Chronicity (could be
-% regressed)? Previous strokes?
-% - normalizing the lesion maps to MNI152 space
-% - coding a CLIMS function for the connectome drawing function so that
-% colors are even across all comparisons (although if I use other software
-% there is no need). In addition, showing histograms of the weights would
-% be informative. + figures showing the actual CCA plot (i.e. correlation).
-% + a MCAcomponent loading bar graph? + do the 'component space' figure for
-% first three components + plot variance accounted for
-% - save all figures to results.
-% - corbetta white matter idea.
-% - correlate communicability loss and the ind CCA weights. (expect
-% correlation in Mode 1 but not Mode 2). Result - less clear in the first
-% mode (althought I think it looks sensible. Second mode has a clear
-% effect. I wonder if the whole thing could be account for by degree, and
-% if that is an issue.
-% - leave one out prediction with CCA. Do they CCA on all - 1 participants
-% then use the weights to predict the behaviour? Correlate the behaviour
-% with the predicted behaviour to get fit
-% - nice CCA explanation https://stats.stackexchange.com/questions/65692/how-to-visualize-what-canonical-correlation-analysis-does-in-comparison-to-what
+% - Other behavioural variables that we might need to think about: first
+% language and chronicity. At the least I should plot chronicity as a
+% histogram
+%
+% - measure extent of white matter versus cortical versus subcortical
+% damage (direct comparison to corbetta + justifies connectionist idea)
+%
+% - consider how to plot results (I'm thinking connectogram via R and
+% connectome workbench)
+%
+% - nice CCA explanation https://stats.stackexchange.com/questions/65692/
+%how-to-visualize-what-canonical-correlation-analysis-does-in-comparison-to-what
+%
+% - permutation / bootstrap with replacement test (need to talk to AP)
+
 clearvars
 close all
 
@@ -36,14 +30,15 @@ addpath('functions');
 %add path to BCT
 
 %% inputs
-dataType = 'conbound15/'; %data type
-parcLabel = '240'; % label for parcellation
+dataType = 'conbound10/'; %data type
+parcLabel = '214'; % label for parcellation
+[~,template] = read([DocsPath,'Atlas/rSchaefer200_plus_HO.nii']); %link to template
 behav.variables = [3,4,8,10,11,12,70,31]; % see 'key' variable for further info.
 
 % load data
 load([DocsPath,'Atlas/',parcLabel,'COG.mat']); % atlas COG
 load([DocsPath,'Atlas/',parcLabel,'parcellation_Yeo8Index.mat']); % atlas network affiliation
-[Cpre,Cpost,nodata] = load_connectomes([DataPath,'connectomes/',dataType,parcLabel,'/']); % connectomes
+[Cpre,Cpost,nodata] = load_connectomes([DataPath,'connectomes/',dataType,'r',parcLabel,'/']); % connectomes
 
 [data, key, P_ID] = load_stroke_behav; % load behaviour
 behav.data = data(:,behav.variables);
@@ -94,90 +89,136 @@ end
 disp(['Average connectome density pre = ',num2str(mean(density.pre)),...
     ' & post = ',num2str(mean(density.post))]);
 
-% normative connectome age (need to be on server with the actual normative
-% connectomes to calculate).
-%[ConnectomeAge] = NormativeConnectomeAge(inputArg1,inputArg2)
-
 %% Lesion functional network mapping
-
-% Actual lesions
-[~,template] = read([DocsPath,'Atlas/Schaefer100_plus_HOAAL']); %link to template
-template = resize_nii(template,[181,217,181]); %when transformed this will change.
-%overlap = zeros(size(template));
-overlap = zeros(181,217,181); % will be corrected in future
-for p = 1:length(P_ID)
-    f = [DataPath,'lesionMaps/3_Nii_interp/',P_ID{p},'_interp.nii'];
-    [~,tmp] = read(f); % we know these aren't correct.
-    lesionSize(p) = sum(sum(sum(tmp)));
-    overlap = tmp + overlap;
-    
-    % count networks
-    for i = 1:max(Yeo8Index)
-        roi = find(Yeo8Index==i); % find rois within network
+LNM=0; %this is a bit slow
+if LNM==1
+    % Actual lesions
+    overlap = zeros(size(template));
+    for p = 1:length(P_ID)
+        f = [DataPath,'lesionMaps/3_rNii/r',P_ID{p},'.nii'];
+        [~,tmp] = read(f); % we know these aren't correct.
+        lesionSize(p) = sum(sum(sum(tmp)));
+        overlap = double(tmp) + overlap;
         
-        idx = zeros(size(template));
-        for j = 1:length(roi)
-            idx = idx + (template == roi(j));
+        % count networks
+        for i = 1:max(Yeo8Index)
+            roi = find(Yeo8Index==i); % find rois within network
+            
+            idx = zeros(size(template)); %index of network
+            for j = 1:length(roi)
+                idx = idx + (template == roi(j));
+            end
+            
+            % expressed as percentage of lesion size
+            FuncMap.Lesion(p,i) = sum(tmp(logical(idx)))/lesionSize(p);
         end
         
-        FuncMap.Lesion(p,i) = sum(tmp(logical(idx)));
+        % should also calculate overlap with a WM mask - this would be of interest
+        % to the corbetta train of thought.
     end
     
-    % should also calculate overlap with a WM mask - this would be of interest
-    % to the corbetta train of thought.
+    % save the overlap nifti for visualization outside of matlab
+    mat2nii(overlap,[DocsPath,'Results/LesionOverlap.nii'],size(overlap),32,f)
+    mat2nii(template,[DocsPath,'Results/template.nii'],size(overlap),32,f)
+    % Connectivity lesions
+    
+    for p = 1:length(P_ID)
+        FuncMap.conn(:,:,p) = mapNetworkConn(Cdiff(:,:,p)>0,Yeo8Index);
+    end
 end
-
-% save the overlap nifti for visualization outside of matlab
-mat2nii(overlap,[DocsPath,'Results/LesionOverlap.nii'],size(overlap),32,f) 
-mat2nii(template,[DocsPath,'Results/template.nii'],size(overlap),32,f) 
-% Connectivity lesions
-
-for p = 1:length(P_ID)
-    FuncMap.conn(:,:,p) = mapNetworkConn(Cdiff(:,:,p)>0,Yeo8Index);
-end
-
 %% MCA
 lesionAffection = 5; % I think 5 is sensible? I suppose 8 is 10%.
-% number of components = 5;
-comps = 5;
-tic
-MCA = run_MCA(Cdiff,lesionAffection,comps,DocsPath);
-toc
+comps = 5;% number of components = 5;
+
+[MCA] = run_MCA(Cdiff,lesionAffection,comps,DocsPath);
+
+% % % regress lesion size from the components
+% for i = 1:comps
+%     [~,~,MCA.IndWeights(:,i)] = regress(MCA.IndWeights(:,i),...
+%         [ones(length(MCA.IndWeights),1),lesionSize']);
+% end
 
 %% CCA
-% x = behaviours we are interested in (NART,APM,VOSP,CANC,LANG)
+% x = behaviours we are interested in (Age, NART,APM,VOSP,CANC,LANG)
 % y = the individual MCA loadings from previous step
 
-x = behav.dataTF(:,4:end);
+x = behav.dataTF(:,[4:end]);
+
 [CCA.A, CCA.B, CCA.R, CCA.U, CCA.V, CCA.stats]=canoncorr(x,MCA.IndWeights);
 disp(['p values for each CCA mode: ',num2str(CCA.stats.p)]);
 
-CCA.conload = corr(x,CCA.U);
-% further CCA stats.
+CCA.conload = corr(x,CCA.U); % is it CCA.U or CCA.V?
 
+% e.g., bootstrap test
 
-% correlation with communicability.
-% for i = 1:size(Cdiff,3)
-%     Communic.pre(i)  = efficiency_wei(Cpre(:,:,i));
-%     Communic.post(i) = efficiency_wei(Cpost(:,:,i));
-%     Communic.diff(i) = Communic.pre(i)-Communic.post(i);
-% end
+%% Draft figures
 
-
-%
-%% Figure 1. Functional network mapping
+%% Methods figure
 close all
+figure('Color','w','Position',[450 450 400 400]); hold on
+
+ax1 = subplot(3,4,1:4);
+data = double(MCA.Conn);
+data(data==0)=2;
+data = data -1;
+imagesc(data);
+xticks([])
+yticks([])
+colormap(ax1,'gray')
+
+ax2 = subplot(3,4,5:6);
+colormap(ax2,'parula')
+data = x;
+imagesc(data);
+ylabel = 'Subjects';
+xlabel = 'Variables';
+cb = colorbar('Ticks',[min(min(data)),max(max(data))],'TickLabels',{'Impaired','Intact'});
+cb.Label.String = 'Behaviour';
+xticks([])
+yticks([])
+
+subplot(3,4,7:8)
+data = MCA.IndWeights;
+imagesc(data);
+cb = colorbar('Ticks',[min(min(data)),max(max(data))],'TickLabels',{'Low','High'});
+cb.Label.String = 'Component loading';
+xticks([])
+yticks([])
+
+subplot(3,4,9)
+scatter(CCA.V(:,1),CCA.U(:,1));
+
+subplot(3,4,10)
+barh(CCA.conload(:,1),'FaceColor',[0.5 0.5 0.5]);
+set(gca,'YTick',1:6,'YTickLabel', [1:5]);
+%xlabel('Loading');
+xlim([-1 1])
+ylim([0.4 size(x,2)+0.5])
+box off
+
+subplot(3,4,11)
+data = corr(MCA.IndWeights,CCA.U);
+barh(data(:,1),'FaceColor',[0.5 0.5 0.5]);
+set(gca,'YTick',1:6,'YTickLabel', 1:5);
+%xlabel('Loading');
+xlim([-1 1])
+ylim([0.4 size(x,2)+0.5])
+box off
+%% Figure 1. Functional network mapping
 
 figure('Color','w','Position',[450 450 600 250]); hold on
 labels = {'Vis';'SM';'DAN';'Sal';'Lim';'FPN';'DMN';'SubC';'Cer'};
 subplot(1,2,1)
 
-boxplot(FuncMap.Lesion,'PlotStyle','compact','symbol','','Colors','k')
+%boxplot(FuncMap.Lesion*100,'PlotStyle','compact','symbol','','Colors','k')
+for i = 1:size(FuncMap.Lesion,2)
+    scatter(repmat(i,length(FuncMap.Lesion),1),FuncMap.Lesion(:,i)*100); hold on
+end
 
 set(gca,'XTick',1:9,'XTickLabel', labels);
 title('A.');
 xtickangle(45);
-ylim([0 4000]);
+ylim([0 100]);
 
 subplot(1,2,2)
 h = imagesc(mean(FuncMap.conn,3));
@@ -223,27 +264,27 @@ for i = 1:comps
 end
 
 % output results for neurmarvl
-    % top 100 from each component - give each component a different edge
-    % weight. Colour by network.
-saveas(gcf,[DocsPath,'Results/Figure2.jpeg']); 
+% top 100 from each component - give each component a different edge
+% weight. Colour by network.
+saveas(gcf,[DocsPath,'Results/Figure2.jpeg']);
 %% Figure 3: CCA
 % construct loadings.
 figure('Color','w','pos',[100 600 400 200]);
 labels = {'Vis';'SM';'DAN';'Sal';'Lim';'FPN';'DMN';'SubC';'Cer'};
-Blabels = {'NART','APM','IL','CANC','LANG'};
+Blabels = {'AGE','NART','APM','IL','CANC','LANG'};
 idx = find(MCA.Connindex);
 for i = 1:2
     % construct loadings
     subplot(1,2,i)
     barh(CCA.conload(:,i),'FaceColor',[0.5 0.5 0.5]);
-    set(gca,'YTick',1:5,'YTickLabel', Blabels);
+    set(gca,'YTick',1:6,'YTickLabel', Blabels);
     xlabel('Loading');
     xlim([-1 1])
-    ylim([0.4 5.5])
+    ylim([0.4 size(x,2)+0.5])
     box off
     title(['Mode ',num2str(i),' behaviour loadings']);
 end
-saveas(gcf,[DocsPath,'Results/Figure3a.jpeg']); 
+saveas(gcf,[DocsPath,'Results/Figure3a.jpeg']);
 
 figure('Color','w','pos',[100 600 400 600]);
 for i = 1:2
@@ -268,9 +309,18 @@ for i = 1:2
     set(gca,'TickLength',[0 0])
     set(gca,'YTick',1:9,'YTickLabel', labels);
     set(gca,'XTick',1:9,'XTickLabel', labels);
-    xtickangle(45) 
+    xtickangle(45)
+    
+    %     % save nifti for further figures
+    %     weighted_degree = sum(MAT+MAT');
+    %     output = zeros(size(template));
+    %     for roi = 1:Node
+    %         loc = template==roi;
+    %         output(loc) = weighted_degree(roi);
+    %     end
+    %     mat2nii(output,[DocsPath,'Results/Mode',num2str(i),'.nii'],size(output),32,f);
 end
-saveas(gcf,[DocsPath,'Results/Figure3b.jpeg']); 
+saveas(gcf,[DocsPath,'Results/Figure3b.jpeg']);
 
 %% SFigure 1: Dimensions of the MCA
 figure('Color','w','pos',[100 600 800 400]);
@@ -307,8 +357,8 @@ ylabel('MCA Component 2')
 zlabel('MCA Component 3')
 
 for i = [50,60] % two data points to highlight
-scatter3(MCA.IndWeights(i,1),MCA.IndWeights(i,2),MCA.IndWeights(i,3),...
-    150,'r'); hold on
+    scatter3(MCA.IndWeights(i,1),MCA.IndWeights(i,2),MCA.IndWeights(i,3),...
+        150,'r'); hold on
 end
 view(35,25)
 
@@ -321,7 +371,7 @@ subplot(1,3,3)
 [I,map] = imread([DocsPath,'Results/MCA/P158_example'],'png');
 imshow(I,map);
 title('High MCA dimension 1 value Sub');
-saveas(gcf,[DocsPath,'Results/SFigure1b.jpeg']); 
+saveas(gcf,[DocsPath,'Results/SFigure1b.jpeg']);
 %% SFigure2: Fully weighted modes
 figure('Color','w','pos',[100 600 400 600]);
 for i = 1:2
@@ -346,6 +396,14 @@ for i = 1:2
     set(gca,'TickLength',[0 0])
     set(gca,'YTick',1:9,'YTickLabel', labels);
     set(gca,'XTick',1:9,'XTickLabel', labels);
-    xtickangle(45) 
+    xtickangle(45)
 end
-saveas(gcf,[DocsPath,'Results/SFigure2.jpeg']); 
+saveas(gcf,[DocsPath,'Results/SFigure2.jpeg']);
+
+figure
+subplot(1,3,1)
+scatter(CCA.V(:,1),CCA.U(:,1));
+subplot(1,3,2)
+scatter(CCA.V(:,2),CCA.U(:,2));
+subplot(1,3,3)
+scatter(CCA.V(:,1),CCA.V(:,2))

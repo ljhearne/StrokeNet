@@ -1,4 +1,4 @@
-function MCA = run_MCA(Cdiff,lesion_affection,comps,DocsPath)
+function [MCA,PCA] = run_MCA(Cdiff,lesion_affection,comps,DocsPath)
 %Function that takes some lesion connectivity and does an MCA.
 % Lesion weights are treated as binary (i.e. missing or not).
 %The R code is hard-coded regarding some paths (I don't know of a way to
@@ -37,5 +37,17 @@ MCA.IndWeights = csvread([DocsPath,'Results/MCA/MCA_IndWeights.csv'],1,1);
 % from what I can tell the lesion loadings are represented on every SECOND
 % row (i.e. 2:2) the other rows represent the "non-lesion loadings"
 MCA.VarWeightsE = MCA.VarWeights(2:2:end,:);
+
+%% PCA
+% also calculates PCA by weighting each lesion by the sqrt of the degree
+% (similar to Zhang et al., 2014 in spirit).
+PCA.Connindex = sum(Cdiff>0,3)>lesion_affection; %index informative voxels
+for i = 1:SampSize
+    tmp = Cdiff(:,:,i)>0; %binarize
+    tmp = tmp/(sqrt(sum(sum(tmp)))); %normalize by sum of lesion.
+    PCA.Conn(i,:) = tmp(PCA.Connindex);
+end
+
+[PCA.coeff,PCA.score] = pca(PCA.Conn);
 end
 
