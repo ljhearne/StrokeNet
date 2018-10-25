@@ -362,14 +362,14 @@ if LNM==1
     set(gca,'XTick',1:9,'XTickLabel', labels);
     xtickangle(45)
     title('B.');
-    saveas(gcf,[DocsPath,'Results/Figure1a.jpeg']);
+    %saveas(gcf,[DocsPath,'Results/Figure1a.jpeg']);
     
     % connectome representation of lesion overlap map
     figure('Color','w','Position',[450 450 300 450]); hold on
     draw_connectome(sum(Cdiff,3),COG,100,120,1);
     axis off
     
-    saveas(gcf,[DocsPath,'Results/Figure1b.jpeg']);
+    %saveas(gcf,[DocsPath,'Results/Figure1b.jpeg']);
 end
 % %% Figure 2: MCA results
 % 
@@ -419,7 +419,7 @@ for i = 1:2
     box off
     title(['Mode ',num2str(i),' behaviour loadings']);
 end
-saveas(gcf,[DocsPath,'Results/Figure3a.jpeg']);
+%saveas(gcf,[DocsPath,'Results/Figure3a.jpeg']);
 
 for i = 1:2
     % mode in brain space
