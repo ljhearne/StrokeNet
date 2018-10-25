@@ -4,9 +4,9 @@
 #direction=2 = server to local
 
 direction=$1
-project='ClinicalActFlow/'
+project='StrokeNet/'
 localDir='/Users/luke/Documents/Projects/'${project}'docs/scripts/'
-serverDir='lukehearne@m3-dtn.massive.org.au:/scratch/sw49/'
+serverDir='lukehearne@m3-dtn.massive.org.au:/project/sw49/'
 
 if [ ${direction} == 1 ]
 then

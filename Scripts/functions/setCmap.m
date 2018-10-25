@@ -1,4 +1,4 @@
-function setCmap(cols)
+function map = setCmap(cols)
 %sets colormap for matrices.
 
 x = [0 255/2 255];

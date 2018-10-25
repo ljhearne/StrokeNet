@@ -14,7 +14,7 @@ l=unique(l);
 EDGE=matrix;
 %EDGE=matrix(l,l);
 
-fName = [edgename,'.edge'];         %# A file name
+fName = edgename;         %# A file name
 fid = fopen(fName,'w');            %# Open the file
 
 dlmwrite(fName,EDGE,'-append',...  %# Print the matrix
@@ -37,7 +37,7 @@ NODE(:,5)=size;
 str='-';
 
 % Write the text file
-fName = [nodename,'.node']; 
+fName = nodename; 
 f = fopen(fName, 'w');
 for n = 1:length(NODE)
     fprintf(f, '%d\t%d\t%d\t%d\t%d\t%s\n', NODE(n,1),NODE(n,2),NODE(n,3),NODE(n,4),NODE(n,5),str);

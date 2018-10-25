@@ -1,0 +1,45 @@
+%function surficeVisbundleVis(MAT,COG,net,size,thresh,out)
+%surficeVis - generates brain vis for StrokeNet project using surfice and
+%R. Mofidy this script to change all renderings in the project.
+%MAT =node by node matrix
+%COG =coordinates (node by 3)
+%net =network affilations (or ones)
+%size=size of nodes (or ones)
+%thresh=threshold for edges;
+%out = output path and prefix
+
+%--------------------
+%debugging
+MAT=rMAT;
+COG=COG;
+net=Yeo8Index;
+size = ones(length(COG),1);
+out = [DocsPath,'Results/SanityCheck/AgeCorr'];
+%--------------------
+% generate NODE and EDGE files
+mat2brainnet(MAT,COG,net,size,[out,'.EDGE'],[out,'.NODE']);
+
+%surfice rendering
+edgefile = [out,'.EDGE'];
+outfile = [out,'_surfice]
+mesh = '/Applications/Surfice/sample/mni152_2009.mz3';
+exe = '/Applications/Surfice/surfice.app/Contents/MacOS/surfice';
+cmd = [exe,' -S "begin RESETDEFAULTS;',...
+    'meshload(''',mesh,''');',...
+    'edgeload(''',edgefile,''');',...
+    'EDGESIZE(1, true);',...
+    'EDGETHRESH(0.5, 1);',...
+    'SHADERXRAY(0.50, 0.50);',...
+    'NODETHRESH(1, 1);',...
+    'colorbarvisible(false);',...
+    'VIEWAXIAL(true);',...
+    'ORIENTCUBEVISIBLE(false);',...
+    'SAVEBMP(''',outfile,''');',...
+    'quit;',...
+    'end."'];
+
+system(cmd);
+%VIEWSAGITTAL(true);
+%AZIMUTH(180);
+end
+

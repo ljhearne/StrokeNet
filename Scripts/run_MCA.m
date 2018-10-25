@@ -30,7 +30,7 @@ csvwrite([DocsPath,'Results/MCA/MCAinput.csv'],double(MCA.Conn));
 csvwrite([DocsPath,'Results/MCA/MCAcomp.csv'],[0,0;0,double(comps)]);
 
 %system('Rscript MCAR.R')
-system('/Library/Frameworks/R.framework/Versions/3.5/Resources/bin/Rscript MCAR.R');
+system('/Library/Frameworks/R.framework/Versions/3.4/Resources/bin/Rscript MCAR.R');
 MCA.VarWeights = csvread([DocsPath,'Results/MCA/MCA_VarWeights.csv'],1,1);
 MCA.Eigen = csvread([DocsPath,'Results/MCA/MCA_Eigenvalues.csv'],1,1);
 MCA.IndWeights = csvread([DocsPath,'Results/MCA/MCA_IndWeights.csv'],1,1);
