@@ -5,14 +5,14 @@
 % - Other behavioural variables that we might need to think about: first
 % language and chronicity. At the least I should plot chronicity as a
 % histogram
-%
+
 % - consider how to plot results (I'm thinking connectogram via R and
 % connectome workbench)
-%
+
 % - nice CCA explanation https://stats.stackexchange.com/questions/65692/
 %how-to-visualize-what-canonical-correlation-analysis-does-in-comparison-to-what
 %
-% - permutation / bootstrap with replacement test (need to talk to AP)
+% - add IF statements for parcellations
 
 clearvars
 close all
@@ -24,15 +24,21 @@ addpath('functions');
 %add path to BCT
 
 %% inputs
+PARC = 'SCH240';
+
 dataType = 'conbound20/'; %data type
-parcLabel = '240'; % label for parcellation
-[~,template] = read([DocsPath,'Atlas/rSchaefer200_plus_HO.nii']); %link to template
 behav.variables = [3,4,8,10,11,12,70,31]; % see 'key' variable for further info.
 
-% load data
-load([DocsPath,'Atlas/',parcLabel,'COG.mat']); % atlas COG
-load([DocsPath,'Atlas/',parcLabel,'parcellation_Yeo8Index.mat']); % atlas network affiliation
-[Cpre,Cpost,nodata] = load_connectomes([DataPath,'connectomes/',dataType,'r',parcLabel,'/']); % connectomes
+if strcmp(PARC,'BN')
+    parcLabel = 'BN';
+    [Cpre,Cpost,nodata] = load_connectomes([DataPath,'connectomes/',dataType,parcLabel,'/']); % connectomes
+elseif strcmp(PARC,'SCH240')
+    parcLabel = '240'; % label for parcellation
+    [~,template] = read([DocsPath,'Atlas/Schaefer200/rSchaefer200_plus_HO.nii']); %link to template
+    load([DocsPath,'Atlas/Schaefer200/',parcLabel,'COG.mat']); % atlas COG
+    load([DocsPath,'Atlas/Schaefer200/',parcLabel,'parcellation_Yeo8Index.mat']); % atlas network affiliation
+    [Cpre,Cpost,nodata] = load_connectomes([DataPath,'connectomes/',dataType,'r',parcLabel,'/']); % connectomes
+end
 
 [data, key, P_ID] = load_stroke_behav; % load behaviour
 behav.data = data(:,behav.variables);
@@ -82,12 +88,10 @@ end
 
 disp(['Average connectome density pre = ',num2str(mean(density.pre)),...
     ' & post = ',num2str(mean(density.post))]);
+
 %% Normative connectome sanity checks
 
 % correlation between age and connectivity weights
-idx = ones(size(Cpre(:,:,1)));
-idx = triu(idx,1);
-
 for i = 1:Node
     for j = 1:Node
         %age
@@ -101,15 +105,15 @@ LNM=0; %this is a bit slow
 if LNM==1
     
     % need to think whether this is accurate enough.
-%     [~,wmMask] = read([DocsPath,'Atlas/white.nii']);
-%     [~,gmMask] = read([DocsPath,'Atlas/grey.nii']);
-%     % resize masks
-%     [wmMask] = resize_nii(wmMask,size(template));
-%     [gmMask] = resize_nii(gmMask,size(template));
-%     %arbrary thresh were most voxels are accounted for
-%     thresh = 125; 
-%     wmMask = wmMask > thresh;
-%     gmMask = gmMask > thresh;
+    %     [~,wmMask] = read([DocsPath,'Atlas/white.nii']);
+    %     [~,gmMask] = read([DocsPath,'Atlas/grey.nii']);
+    %     % resize masks
+    %     [wmMask] = resize_nii(wmMask,size(template));
+    %     [gmMask] = resize_nii(gmMask,size(template));
+    %     %arbrary thresh were most voxels are accounted for
+    %     thresh = 125;
+    %     wmMask = wmMask > thresh;
+    %     gmMask = gmMask > thresh;
     
     % Actual lesions
     overlap = zeros(size(template));
@@ -134,7 +138,7 @@ if LNM==1
             FuncMap.Lesion(p,i) = sum(tmp(logical(idx)))/lesionSize(p);
         end
     end
-
+    
     
     % save the overlap nifti for visualization outside of matlab
     mat2nii(overlap,[DocsPath,'Results/LesionOverlap.nii'],size(overlap),32,f)
@@ -191,34 +195,34 @@ end
 %et al., 2015).
 CCA.pcorr=zeros(size(CCA.R));
 for i=1:length(CCA.R)
-    CCA.pcorr(i)=sum(CCA.Rnull>=CCA.R(i))/Perms; 
+    CCA.pcorr(i)=sum(CCA.Rnull>=CCA.R(i))/Perms;
 end
 disp(['Permutation corrected p values for each CCA mode: ',num2str(CCA.pcorr)]);
 
 %Confidence interval weights bootstrap
 Perms=5000;
 As=zeros(size(x,2),Perms);
-Bs=zeros(size(MCA.IndWeights,2),Perms); 
+Bs=zeros(size(MCA.IndWeights,2),Perms);
 for i=1:Perms
-    ind_rand=ceil(rand(size(x,1),1)*size(x,1)); 
+    ind_rand=ceil(rand(size(x,1),1)*size(x,1));
     [AA,BB,~,UU,VV]=canoncorr(x(ind_rand,:),MCA.IndWeights(ind_rand,:));
     
     if corr(AA(:,1),CCA.A(:,1))<0
         AA(:,1)=AA(:,1)*-1; BB(:,1)=BB(:,1)*-1;
     end
-    As(:,i)=AA(:,1); 
+    As(:,i)=AA(:,1);
     Bs(:,i)=BB(:,1);
     CCA.conloadNull(:,:,i) = corr(x,UU);
 end
 
 %Determine when confidence intervals are exceeded for each weight
-Lwr=floor(0.20*Perms); 
-Upr=ceil((1-0.20)*Perms); 
+Lwr=floor(0.20*Perms);
+Upr=ceil((1-0.20)*Perms);
 xA=size(x,2);
 for i=1:size(x,2)
-    tmp=sort(As(i,:)); 
+    tmp=sort(As(i,:));
     if tmp(Upr)*tmp(Lwr) > 0
-        xA(i)=1; 
+        xA(i)=1;
     else
         xA(i)=0;
     end
@@ -232,13 +236,13 @@ figure('Color','w','Position',[450 450 700 400]); hold on
 
 %generate two colourmaps
 c = [255, 255, 255
-     127.5, 127.5, 127.5
-     0, 0, 0]./255;
+    127.5, 127.5, 127.5
+    0, 0, 0]./255;
 bwmap = interp1([0 255/2 255]/255,c,linspace(0,1,255));
 
 c = [0, 0, 144
-     255, 255, 255
-     144, 0, 0]./255;
+    255, 255, 255
+    144, 0, 0]./255;
 bwrmap = interp1([0 255/2 255]/255,c,linspace(0,1,255));
 
 % "Pre" SUB002 matrix
@@ -250,6 +254,9 @@ imagesc(plotdata,lims)
 xticks([])
 yticks([])
 colormap(ax1,bwmap)
+t=title('Sub-02 "Pre"');
+t.FontSize = 10;
+t.FontWeight = 'normal';
 
 %"Post" SUB002 matrix
 ax1 = subplot(3,5,11);
@@ -260,6 +267,9 @@ imagesc(plotdata,lims)
 xticks([])
 yticks([])
 colormap(ax1,bwmap)
+t=title('Sub-02 "Post"');
+t.FontSize = 10;
+t.FontWeight = 'normal';
 
 %Difference SUB002 matrix
 ax1 = subplot(3,5,7);
@@ -270,6 +280,9 @@ imagesc(plotdata,lims)
 xticks([])
 yticks([])
 colormap(ax1,bwmap)
+t=title('Sub-02 "Lesioned"');
+t.FontSize = 10;
+t.FontWeight = 'normal';
 
 % Lesioned connectivity input (subj by connection)
 ax1 = subplot(3,5,3:5);
@@ -280,17 +293,23 @@ imagesc(plotdata);
 xticks([])
 yticks([])
 colormap(ax1,bwmap)
-% 
+t=title('Group lesioned connectivity');
+t.FontSize = 10;
+t.FontWeight = 'normal';
+%
 % behavioural matrix
 ax2 = subplot(3,5,8);
 plotdata = x;
 lims = [max(max(abs(plotdata)))*-1,max(max(abs(plotdata)))];
 imagesc(plotdata,lims);
-ylabel = 'Subjects';
-xlabel = 'Variables';
+ylabel('Subjects');
+xlabel('Variables');
 xticks([])
 yticks([])
 colormap(ax2,bwrmap)
+t=title('Behaviour');
+t.FontSize = 10;
+t.FontWeight = 'normal';
 
 % colobar for illustrator
 subplot(3,5,9)
@@ -299,20 +318,24 @@ cb = colorbar('Ticks',lims,'TickLabels',{'Impaired','Intact'});
 cb.Label.String = 'Behaviour';
 
 % component matrix
-subplot(3,5,10)
+ax2 = subplot(3,5,10);
 plotdata = MCA.IndWeights;
 lims = [max(max(abs(plotdata)))*-1,max(max(abs(plotdata)))];
-imagesc(plotdata);
+imagesc(plotdata,lims);
 xticks([])
 yticks([])
- 
+colormap(ax2,bwrmap)
+t=title('Components');
+t.FontSize = 10;
+t.FontWeight = 'normal';
+
 % CCA correlation
 subplot(3,5,13)
 scatter(CCA.V(:,1),CCA.U(:,1),...
-        'MarkerEdgeColor',[0.6,0.6,0.6],...
-        'MarkerFaceAlpha',0.5,...
-        'MarkerEdgeAlpha',0.5,...
-        'MarkerFaceColor',[0.6,0.6,0.6]); hold on;
+    'MarkerEdgeColor',[0.6,0.6,0.6],...
+    'MarkerFaceAlpha',0.5,...
+    'MarkerEdgeAlpha',0.5,...
+    'MarkerFaceColor',[0.6,0.6,0.6]); hold on;
 h=lsline;
 set(h,'Color','k')
 
@@ -324,7 +347,12 @@ set(gca,'YTick',1:6,'YTickLabel', {'var 1','var 2','var 3','var 4','var 5','var 
 xlim([-1 1])
 ylim([0.4 size(x,2)+0.5])
 box off
+t=title('CCA results');
+t.FontSize = 10;
+t.FontWeight = 'bold';
 
+saveas(gcf,[DocsPath,'Figures/Methods/MethodsSchematic.eps']);
+saveas(gcf,[DocsPath,'Figures/Methods/MethodsSchematic.svg']);
 %% Normative Connectome Sanity Check
 % figure('Color','w','pos',[100 600 400 400]);
 % title('Age related change');
@@ -334,10 +362,42 @@ box off
 % subplot(3,2,5)
 % draw_connectome(rMAT,COG,100,60,0.2,2,100,1);
 % axis off
-out = [DocsPath,'Results/SanityCheck/AgeCorr'];
+%out = [DocsPath,'Results/SanityCheck/AgeCorr'];
 %MAT = rMAT;
 %MAT(abs(MAT)<0.5)=0;
 
+%% Methods NKI atlas
+figure('Color','w','Position',[450 450 700 300]); hold on
+NKI = load('normativeConnectomes/NKIdetails'); %calculated on server
+
+subplot(1,4,1)
+histogram(NKI.NKIage)
+box off
+t = title('NKI age');
+t.FontSize = 10;
+t.FontWeight = 'normal';
+
+subplot(1,4,2)
+histogram(NKI.NKIsex)
+box off
+t = title('NKI gender');
+t.FontSize = 10;
+t.FontWeight = 'normal';
+set(gca,'XTick',0:1,'XTickLabel', {'Female','Male'});
+
+subplot(1,4,3:4)
+% plot all connectommic ages.
+[~,idx] = sort(behav.data(:,2),'ascend');
+for i = 1:length(P_ID)
+    j = idx(i);
+    scatter(repmat(i,1,length(NKI.ConnectomeAge.raw{j})),NKI.ConnectomeAge.raw{j},...
+        '.','MarkerEdgeAlpha',0.5,'MarkerEdgeColor',[0.5 0.5 0.5]); hold on
+    h = scatter(i,behav.data(j,2),'k','filled'); hold on
+end
+xlabel('Population')
+ylabel('Age')
+saveas(gcf,[DocsPath,'Figures/Methods/NKI.svg']);
+close all
 %% Figure 1. Functional network mapping
 if LNM==1
     figure('Color','w','Position',[450 450 600 250]); hold on
@@ -371,93 +431,111 @@ if LNM==1
     
     %saveas(gcf,[DocsPath,'Results/Figure1b.jpeg']);
 end
-% %% Figure 2: MCA results
-% 
-% figure('Color','w','pos',[100 600 800 400]);
-% 
-% labels = {'Vis';'SM';'DAN';'Sal';'Lim';'FPN';'DMN';'SubC';'Cer'};
-% idx = find(MCA.Connindex);
-% 
-% for i = 1:comps
-%     % connectome plot
-%     subplot(3,comps,[i,comps+i])
-%     title(['Component ',num2str(i)]);
-%     MAT = zeros(size(Cdiff,1),size(Cdiff,1));
-%     MAT(idx) = MCA.VarWeightsE(:,i);
-%     draw_connectome(MAT,COG,100,80,0.1,1,100,1);
-%     %xlabel(['MCA Component : ',num2str(i)]);
-%     axis off
-%     
-%     %network plot
-%     subplot(3,comps,i+comps*2)
-%     MATnet = mapNetworkConn(MAT,Yeo8Index);
-%     imagesc(MATnet);
-%     set(gca,'TickLength',[0 0])
-%     set(gca,'YTick',1:9,'YTickLabel', labels);
-%     set(gca,'XTick',1:9,'XTickLabel', labels);
-%     xtickangle(45)
-% end
-% 
-% % output results for neurmarvl
-% % top 100 from each component - give each component a different edge
-% % weight. Colour by network.
-% saveas(gcf,[DocsPath,'Results/Figure2.jpeg']);
-%% Figure 3: CCA
-% construct loadings.
-figure('Color','w','pos',[100 600 400 200]);
+
+%% Figure 2: MCA results
+
+figure('Color','w','pos',[100 600 1200 180]);
+
 labels = {'Vis';'SM';'DAN';'Sal';'Lim';'FPN';'DMN';'SubC';'Cer'};
-%bluecol = [.4,.6,.95];
 idx = find(MCA.Connindex);
-for i = 1:2
-    subplot(1,2,i)
-    
-    stemplot(CCA,i);
-   
-    set(gca,'YTick',1:6,'YTickLabel', Blabels);
-    xlim([-1 1])
-    ylim([0.4 size(x,2)+0.5])
-    box off
-    title(['Mode ',num2str(i),' behaviour loadings']);
-end
-%saveas(gcf,[DocsPath,'Results/Figure3a.jpeg']);
 
-for i = 1:2
-    % mode in brain space
-    subplot(4,4,[i,i+4])
-    title(['Mode ',num2str(i),' top connections']);
-    Mode = corr(CCA.V(:,i),MCA.Conn)';
+for i = 1:comps
+    % matrix plot
+    ax = subplot(1,comps,i);
+    title(['Component ',num2str(i)]);
     MAT = zeros(size(Cdiff,1),size(Cdiff,1));
-    MAT(idx) = Mode;
-   
-    %full weighted
-    thresh = [0,max(max(max(abs(MAT))))];
-    out = [DocsPath,'Results/CCA/MODE',num2str(i),'full'];
-    surficeVisbundleVis(MAT,COG,Yeo8Index,ones(length(COG),1),thresh,out)
+    MAT(idx) = MCA.VarWeightsE(:,i);
     
-    %thresholded
-    % abs top N connections
-    N = 200;
-    newMAT = zeros(size(MAT));
-    MATthresh = abs(MAT);
-    tmp = sort(MATthresh(:),'descend');
-    MATthresh = MATthresh >= tmp(N);
-    newMAT(find(MATthresh>0)) = MAT(MATthresh>0);
-    
-    MAT = newMAT;
-    thresh = [0,max(max(max(abs(MAT))))];
-    out = [DocsPath,'Results/CCA/MODE',num2str(i),'thresh'];
-    surficeVisbundleVis(MAT,COG,Yeo8Index,ones(length(COG),1),thresh,out)
-    %     % save nifti for further figures
-    %     weighted_degree = sum(MAT+MAT');
-    %     output = zeros(size(template));
-    %     for roi = 1:Node
-    %         loc = template==roi;
-    %         output(loc) = weighted_degree(roi);
-    %     end
-    %     mat2nii(output,[DocsPath,'Results/Mode',num2str(i),'.nii'],size(output),32,f);
+    plotdata = FCimagesc([MAT+MAT'],Yeo8Index);
+    lims = [-1,1]; % setting a hard limit makes the bottom triangle more interpretable
+    imagesc(plotdata,[-1 1]);
+    xticks([])
+    yticks([])
+    colormap(ax,bwrmap)
 end
 
-
+saveas(gcf,[DocsPath,'Results/Figure2.jpeg']);
+%% Figure 3: CCA
+DO_RENDER = 1;
+if DO_RENDER == 1
+    % construct loadings.
+    
+    labels = {'Vis';'SM';'DAN';'Sal';'Lim';'FPN';'DMN';'SubC';'Cer'};
+    %bluecol = [.4,.6,.95];
+    idx = find(MCA.Connindex);
+    
+    %correlation figure
+    
+    %behavioural loadings
+    figure('Color','w','pos',[100 600 400 200]);
+    for i = 1:2
+        subplot(1,2,i)
+        
+        stemplot(CCA,i);
+        set(gca,'YTick',1:6,'YTickLabel', Blabels);
+        xlim([-1 1])
+        ylim([0.4 size(x,2)+0.5])
+        box off
+        title(['Mode ',num2str(i),' behaviour loadings']);
+    end
+    %saveas(gcf,[DocsPath,'Results/Figure3a.jpeg']);
+    
+    %connectivity loadings
+    for i = 1:2
+        % mode in brain space
+        Mode = corr(CCA.V(:,i),MCA.Conn)';
+        MAT = zeros(size(Cdiff,1),size(Cdiff,1));
+        MAT(idx) = Mode;
+        
+        % save nifti for further figures
+        weighted_degree = sum(MAT+MAT');
+        output = zeros(size(template));
+        for roi = 1:Node
+            loc = template==roi;
+            output(loc) = weighted_degree(roi);
+        end
+        mat2nii(output,[DocsPath,'Results/CCA/Mode',num2str(i),'.nii'],size(output),32,[DocsPath,'Atlas/Schaefer200/rSchaefer200_plus_HO.nii']);
+        
+        % surface rendering
+        out = [DocsPath,'Results/CCA/ModeMAP',num2str(i)];
+        NIFTI = [DocsPath,'Results/CCA/Mode',num2str(1),'.nii'];
+        thresh = ceil(max(abs(weighted_degree)));
+        surficeMapVis([DocsPath,'Results/CCA/Mode',num2str(i),'.nii'],thresh,out)
+        
+        %thresholded
+        N = 100;
+        % abs top N connections
+        
+        %     newMAT = zeros(size(MAT));
+        %     MATthresh = abs(MAT);
+        %     tmp = sort(MATthresh(:),'descend');
+        %     MATthresh = MATthresh >= tmp(N);
+        %     newMAT(find(MATthresh>0)) = MAT(MATthresh>0);
+        %     MAT = newMAT;
+        
+        % top N/2 from each direction?
+        newMAT = zeros(size(MAT));
+        MATthresh = MAT;
+        tmp = sort(MATthresh(:),'descend');
+        MATthresh = MATthresh > tmp(N/2);
+        newMAT(find(MATthresh>0)) = MAT(MATthresh>0);
+        
+        newMATneg = zeros(size(MAT));
+        MATthresh = MAT;
+        tmp = sort(MATthresh(:),'ascend');
+        MATthresh = MATthresh < tmp(N/2);
+        newMATneg(find(MATthresh>0)) = MAT(MATthresh>0);
+        newMAT = newMAT+newMATneg;
+        
+        %thresholded edge diagram
+        thresh = [0,max(abs(Mode))];
+        out = [DocsPath,'Results/CCA/Mode',num2str(i),'thresh',num2str(N)];
+        surficeEdgeVis(newMAT,COG,Yeo8Index,ones(length(COG),1),thresh,out)
+        
+        %thresholded bundle diagram
+        ConnectogramR(newMAT,COG,Yeo8Index,labels,out)
+    end
+end
 % %% SFigure 1: Dimensions of the MCA
 % figure('Color','w','pos',[100 600 800 400]);
 % labels = {'Vis';'SM';'DAN';'Sal';'Lim';'FPN';'DMN';'SubC';'Cer'};
@@ -472,7 +550,7 @@ end
 %     draw_connectome(MAT,COG,100,80,0.1);
 %     %    xlabel(['MCA Component : ',num2str(i)])
 %     axis off
-%     
+%
 %     %network plot
 %     subplot(3,comps,i+comps*2)
 %     MATnet = mapNetworkConn(MAT,Yeo8Index);
@@ -483,7 +561,7 @@ end
 %     xtickangle(45)
 % end
 % saveas(gcf,[DocsPath,'Results/SFigure1a.jpeg']);
-% 
+%
 % figure('Color','w','pos',[100 600 900 300]);
 % subplot(1,3,2)
 % scatter3(MCA.IndWeights(:,1),MCA.IndWeights(:,2),MCA.IndWeights(:,3),...
@@ -491,18 +569,18 @@ end
 % %xlabel('MCA Component 1')
 % %ylabel('MCA Component 2')
 % %zlabel('MCA Component 3')
-% 
+%
 % for i = [50,60] % two data points to highlight
 %     scatter3(MCA.IndWeights(i,1),MCA.IndWeights(i,2),MCA.IndWeights(i,3),...
 %         150,'r'); hold on
 % end
 % view(35,25)
-% 
+%
 % subplot(1,3,1)
 % [I,map] = imread([DocsPath,'Results/MCA/P128_example'],'png');
 % imshow(I,map);
 % title('Low MCA dimension 1 value Sub');
-% 
+%
 % subplot(1,3,3)
 % [I,map] = imread([DocsPath,'Results/MCA/P158_example'],'png');
 % imshow(I,map);
@@ -518,15 +596,15 @@ end
 %     Mode = corr(CCA.V(:,i),MCA.Conn)';
 %     MAT = zeros(size(Cdiff,1),size(Cdiff,1));
 %     MAT(idx) = Mode;
-%     
+%
 %     % draw top 100/bottom 100 only
 %     draw_connectome(MAT,COG,100,120,0.2);
 %     axis off
-%     
+%
 %     subplot(4,2,i+4)
 %     draw_connectome(MAT,COG,100,60,0.2,2);
 %     axis off
-%     
+%
 %     subplot(4,2,i+6)
 %     MATnet = mapNetworkConn(MAT,Yeo8Index);
 %     imagesc(MATnet);
@@ -536,7 +614,7 @@ end
 %     xtickangle(45)
 % end
 % saveas(gcf,[DocsPath,'Results/SFigure2.jpeg']);
-% 
+%
 % figure
 % subplot(1,3,1)
 % scatter(CCA.V(:,1),CCA.U(:,1));

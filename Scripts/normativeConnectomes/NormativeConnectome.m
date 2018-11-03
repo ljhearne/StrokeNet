@@ -53,7 +53,7 @@ Patient.ID(ex)  = [];
 clear data key P_ID NUM TXT ex
 poolobj = MASSIVEpp(1,scratch_dir);
 
-for subj = 85:length(Patient.ID)
+for subj = 1:length(Patient.ID)
     tic
     
     disp(['Analyzing subj map ',num2str(subj),'/',num2str(length(Patient.ID))]);
@@ -63,7 +63,7 @@ for subj = 85:length(Patient.ID)
     Analysis.age = Patient.age(subj);
     Analysis.sex = Patient.sex(subj);
     
-    [fibers,Analysis.conboundResult] = ...
+    [fibers,Analysis.conboundResult, Analysis.subIDX] = ...
         gen_NormConnectome(Cdata, Analysis.age,Analysis.sex,Analysis.conbound);
     
     % write full normative connectome

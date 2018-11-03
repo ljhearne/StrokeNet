@@ -7,8 +7,8 @@ docsdir = '/projects/sw49/';
 addpath([docsdir,'Project_scripts/functions']);
 %% Inputs
 %parcellation choice
-parc = [docsdir,'Atlas/rSchaefer200_plus_HOAAL.nii'];
-parcLabel = 'r240/'; % label for parcellation
+parc = [docsdir,'Atlas/BN_Atlas_246_1mm.nii'];
+parcLabel = 'BN/'; % label for parcellation
 conbound = 15;
 
 %%
