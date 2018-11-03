@@ -312,10 +312,10 @@ t.FontSize = 10;
 t.FontWeight = 'normal';
 
 % colobar for illustrator
-subplot(3,5,9)
-lims = [max(max(abs(plotdata)))*-1,max(max(abs(plotdata)))];
-cb = colorbar('Ticks',lims,'TickLabels',{'Impaired','Intact'});
-cb.Label.String = 'Behaviour';
+%subplot(3,5,9)
+%lims = [max(max(abs(plotdata)))*-1,max(max(abs(plotdata)))];
+%cb = colorbar('Ticks',lims,'TickLabels',{'Impaired','Intact'});
+%cb.Label.String = 'Behaviour';
 
 % component matrix
 ax2 = subplot(3,5,10);
@@ -340,19 +340,20 @@ h=lsline;
 set(h,'Color','k')
 
 % behavioural loadings
-subplot(3,5,14)
-stemplot(CCA,1);
-set(gca,'YTick',1:6,'YTickLabel', {'var 1','var 2','var 3','var 4','var 5','var 6'});
-%xlabel('Loading');
-xlim([-1 1])
-ylim([0.4 size(x,2)+0.5])
-box off
-t=title('CCA results');
-t.FontSize = 10;
-t.FontWeight = 'bold';
+% subplot(3,5,14)
+% stemplot(CCA,1);
+% set(gca,'YTick',1:6,'YTickLabel', {'var 1','var 2','var 3','var 4','var 5','var 6'});
+% %xlabel('Loading');
+% xlim([-1 1])
+% ylim([0.4 size(x,2)+0.5])
+% box off
+% t=title('CCA results');
+% t.FontSize = 10;
+% t.FontWeight = 'bold';
 
-saveas(gcf,[DocsPath,'Figures/Methods/MethodsSchematic.eps']);
-saveas(gcf,[DocsPath,'Figures/Methods/MethodsSchematic.svg']);
+saveas(gcf,[DocsPath,'Figures/Methods/MethodsSchematic.eps'],'svg');
+saveas(gcf,[DocsPath,'Figures/Methods/MethodsSchematic.svg'],'eps');
+saveas(gcf,[DocsPath,'Figures/Methods/MethodsSchematic.png'],'png');
 %% Normative Connectome Sanity Check
 % figure('Color','w','pos',[100 600 400 400]);
 % title('Age related change');
