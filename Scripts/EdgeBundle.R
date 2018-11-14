@@ -60,7 +60,7 @@ p = ggraph(mygraph, layout = 'dendrogram', circular = TRUE) +
 p + 
   geom_node_point(aes(filter = leaf, x = x*1.05, y=y*1.05, colour=group, size=value2, alpha=0.2), show.legend = TRUE) +
   scale_colour_manual(values = colours) +
-  scale_size_continuous( range = c(0.1,10))
+  scale_size_continuous( range = c(0.1,20))
   
 ggsave(out, width = 5, height = 5,dpi = 600, limitsize = FALSE)
 

@@ -3,13 +3,19 @@ function mapping = mapNetworkConn(MAT,net)
 %edges
 
     MAT = triu(MAT,1);
-    tmp = MAT+MAT'; %symmetrize
+    MAT = MAT+MAT'; %symmetrize
     
     for i = 1:max(net)
         for j = 1:max(net)
             idxR = net==i;
             idxC = net==j;
-            mapping(i,j) = sum(sum(tmp(idxR,idxC)));
+            
+            % by summing
+            %mapping(i,j) = sum(sum(MAT(idxR,idxC)));
+            
+            %by meaning (accounts for number of regions)
+            tmp = MAT(idxR,idxC);
+            mapping(i,j) = mean(tmp(:));
         end
     end
 end
