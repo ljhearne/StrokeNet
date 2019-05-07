@@ -5,18 +5,16 @@
 clearvars
 close all
 projectdir = '/projects/sw49/';
-docsdir = [projectdir,'Project_scripts/'];
+docsdir = [projectdir,'normativeConnectomes/'];
 addpath(genpath([projectdir,'LEAD']));
-addpath([docsdir,'functions']);
+%addpath([docsdir,'functions']);
 %% Inputs
 
 Analysis.datadir = '/scratch/sw49/';  
-Analysis.connectomedir = ['/projects/sw49/LEAD/connectomes/dMRI/',...
-    'Gibbsconnectome_169 (Horn 2016)/',...
-    'data.mat']; %absolute path to the LEAD DBS connectome data
+Analysis.connectomedir = '/projects/sw49/LEAD/connectomes/dMRI/Gibbsconnectome_169 (Horn 2016)/data.mat'; %absolute path to the LEAD DBS connectome data
 Analysis.lesiondir = [Analysis.datadir,'lesionMaps/3_rNii/']; %coreg lesions
 
-Analysis.conbound = 20; % how many connectomes to include
+Analysis.conbound = 30; % how many connectomes to include
 Analysis.chunkSize = 200; % how many chunks should the data be divided into?
 scratch_dir = [Analysis.datadir,'scratch/'];
 
@@ -28,7 +26,7 @@ disp('LeadDBS connectome is in workspace');
 %% Organise patient data
 
 % read in spreadsheet of stroke behavioural data.
-[NUM,TXT]=xlsread([docsdir,'Stroke_Lucy_030817_edit.xlsx']);
+[NUM,TXT]=xlsread([Analysis.datadir,'Stroke_Lucy_030817_edit.xlsx']);
 P_ID = TXT(2:end,1); % participant IDs
 data = NUM(1:length(P_ID),:);
 Patient.age = data(:,4);
@@ -53,7 +51,7 @@ Patient.ID(ex)  = [];
 clear data key P_ID NUM TXT ex
 poolobj = MASSIVEpp(1,scratch_dir);
 
-for subj = 1:length(Patient.ID)
+for subj = 6:length(Patient.ID)
     tic
     
     disp(['Analyzing subj map ',num2str(subj),'/',num2str(length(Patient.ID))]);

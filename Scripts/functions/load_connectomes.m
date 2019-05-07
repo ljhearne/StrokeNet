@@ -9,7 +9,7 @@ function [Cpre,Cpost,nodata,Cpresym,Cpostsym] = load_connectomes(path)
 sep = ' ';
 
 % get number of nodes.
-file = [path,P_ID{1},'_NoLesion','.csv'];
+file = [path,P_ID{1},'_NoLesion_SC','.csv'];
 tmp = dlmread(file,sep);
 N = size(tmp,1);
 
@@ -19,10 +19,11 @@ nodata = zeros(length(P_ID),1);
 
 for i = 1:length(P_ID)
     try
-        file = [path,P_ID{i},'_NoLesion','.csv'];
+        %_invnodelengthweights
+        file = [path,P_ID{i},'_NoLesion_SC','.csv'];
         Cpre(:,:,i) = dlmread(file,sep);
         
-        file = [path,P_ID{i},'_Lesion','.csv'];
+        file = [path,P_ID{i},'_Lesion_SC','.csv'];
         Cpost(:,:,i) = dlmread(file,sep);
         
         Cpresym(:,:,i) = Cpre(:,:,i)+Cpre(:,:,i)';
