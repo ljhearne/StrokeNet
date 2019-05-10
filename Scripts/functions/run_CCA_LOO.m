@@ -77,9 +77,11 @@ end
 CCA.predicted_values = xPred;
 CCA.real_values = behav_data;
 
-for i = 1:num_meas
-   [CCA.predicted_r(i),CCA.predicted_p(i)] = corr(CCA.real_values(:,i),CCA.predicted_values(:,i,1));
-    %disp(['For variable: ',num2str(i),', r = ',num2str(CCA.predicted_r),', p = ',num2str(CCA.predicted_p)])
+for Mode = 1:num_modes
+    for i = 1:num_meas
+        [CCA.predicted_r(i,Mode),CCA.predicted_p(i,Mode)] = corr(CCA.real_values(:,i),CCA.predicted_values(:,i,Mode));
+        %disp(['For variable: ',num2str(i),', r = ',num2str(CCA.predicted_r),', p = ',num2str(CCA.predicted_p)])
+    end
 end
 end
 

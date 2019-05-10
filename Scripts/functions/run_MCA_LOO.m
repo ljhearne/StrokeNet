@@ -43,6 +43,7 @@ if run_MCA==1
         temp                   = csvread([Path,'MCA_VarWeights_LO',num2str(subj),'.csv'],1,1);
         Varweights(:,:,subj)   = temp(2:2:end,:);
     end
+    mkdir([resultsdir,'MCA/']);
     save([resultsdir,'MCA/Weights.mat'],'Indweights','LOO_Indweights','Eigenvalues','Varweights')
     
     % clean up the directory

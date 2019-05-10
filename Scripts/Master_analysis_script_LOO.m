@@ -18,38 +18,38 @@ DocsPath = '/Users/luke/Documents/Projects/StrokeNet/Docs/';
 addpath('functions');
 
 %% Inputs
-parc = 'Sch214';
+parc = 'voxelwise';
 participant_demographics = 0;   % Do you want to complete demographics analysis?
 
 run_lesion_reg = 0;             % Do you want to regress lesion size?
 
-run_MCA        = 0;             % Do you want to perform the LOO MCA? This is slow.
+run_MCA        = 1;             % Do you want to perform the LOO MCA? This is slow.
 
-CCA_perms = 1000;                 % Number of permutations for significance testing
+CCA_perms = 1000;               % Number of permutations for significance testing
 
-edgeThreshold  = 0;             % When is an edge considered 'lesioned' within 
-                                % participant
-                                
-lesionAffection = 1;            % How many edges across participants need to be lesioned
-                                % for that edge to be included in the MCA?
-                                % For LOO, it should be at least 1.
-                                
+edgeThreshold  = 0;             % When is an edge considered 'lesioned' within
+% participant
+
+lesionAffection = 4;            % How many edges across participants need to be lesioned
+% for that edge to be included in the MCA?
+% For LOO, it should be at least 1.
+
 num_comps = 10;                 % number of MCA components included in CCA
 
 num_modes = 2;                  % number of modes to investigate
 
 norm_prior = 1;                 % normalize behavioural variables BEFORE leave one out analysis.
-                                % This causes no difference in the results
-                                % (in fact, slightly increases correlation)
-                                % but the predicted values produced are
-                                % outliers (in the sense they are quite
-                                % extreme) which inflates the correlation.
-                                % This is likely due to spatial neglect
-                                % variables having a skewed distribution
-                                % where a simple variable transform using
-                                % SD is not going to perform well.
-                                
-conbound = 'conbound30/'; %normative connectome data type
+% This causes no difference in the results
+% (in fact, slightly increases correlation)
+% but the predicted values produced are
+% outliers (in the sense they are quite
+% extreme) which inflates the correlation.
+% This is likely due to spatial neglect
+% variables having a skewed distribution
+% where a simple variable transform using
+% SD is not going to perform well.
+
+conbound = 'conbound20/'; %normative connectome data type
 behav.CCA = [10,11,19,31,71]; %variables to include in CCA
 behav.DEMO = [4,3,8,7]; % demographic variables (age,gender,education,chronicity)
 Blabels = {'NART','APM','Q1_spon','Q6_fluency','CANC'};
@@ -60,6 +60,8 @@ if strcmp(parc,'BN')
     nRoi = 246;
     [Cpre,Cpost,nodata] = load_connectomes([DataPath,'connectomes/',conbound,parc,'/']); % connectomes
     resultsdir = [DocsPath,'Results/',conbound,parc,'/'];
+    load([DocsPath,'Atlas/BNAtlas/BN_Yeo8Index.mat']); % atlas network affiliation
+    load([DocsPath,'Atlas/BNAtlas/COG.mat']); % atlas COG
     
 elseif strcmp(parc,'Sch214')
     nRoi = 214; % label for parcellation
@@ -130,7 +132,7 @@ num_meas = size(behav.data,2);
 
 % Load voxelwise data if needed
 if strcmp(parc,'voxelwise') || run_lesion_reg==1
-
+    
     disp('... loading voxelwise data');
     for p = 1:N
         f = [DataPath,'lesionMaps/3_rNii/r',P_ID{p},'.nii'];
@@ -149,10 +151,10 @@ end
 % data
 if participant_demographics==1
     
-disp('--------------------------------------');
-disp('PARTICIPANT AND NORM-CONNECTOME INFORMATION');
-print_analysis_info(P_ID,behav.dataDemo,parc,Cpre,Cpost,conbound)
-
+    disp('--------------------------------------');
+    disp('PARTICIPANT AND NORM-CONNECTOME INFORMATION');
+    print_analysis_info(P_ID,behav.dataDemo,parc,Cpre,Cpost,conbound)
+    
 end
 
 %% Dimensionality reduction: multiple correspondance analysis (MCA)
@@ -187,9 +189,9 @@ end
 
 if run_lesion_reg==1
     disp('... Doing lesion regression')
-
+    
     % regress lesion size from the MCA components.
-    for i = 1:size(MCA.IndWeights,2)               
+    for i = 1:size(MCA.IndWeights,2)
         x = [ones(length(lesionSize),1),lesionSize];
         [~,~,residual] = regress(MCA.IndWeights(:,i),x);
         MCA.IndWeights(:,i) = residual;
@@ -211,7 +213,7 @@ for i = 1:CCA_perms
     r = r(randperm(length(r)));
     tmp = run_CCA_LOO(behav.dataTF(r,:),MCA,num_comps,num_modes,norm_prior);
     CCA.perm_r(i) = mean(tmp.r(:,1));
-    CCA.perm_predicted_r(i,:) = tmp.predicted_r;
+    CCA.perm_predicted_r(i,:) = tmp.predicted_r(:,1); %only take first mode
     
     if i==90
         disp([ 9 num2str(i),' perms are finished...'])
@@ -232,7 +234,7 @@ disp(['CCA: permutation-based p value for Mode 2: ',num2str(p)])
 
 % Each behaviour
 for i = 1:num_meas
-    disp(['For variable: ',num2str(i),', r = ',num2str(CCA.predicted_r(i)),', p = ',num2str(CCA.predicted_p(i))])
+    disp(['For variable: ',num2str(i),': ',Blabels{i},' r = ',num2str(CCA.predicted_r(i)),', p = ',num2str(CCA.predicted_p(i))])
     p = invprctile(CCA.perm_predicted_r(:,1),CCA.predicted_r(i));
     disp([9 'CCA: permutation-based p value for Mode 1: ', num2str(p)])
 end
@@ -271,9 +273,9 @@ for Mode = 1:2
         r = corr(all_data(~idx,1),all_data(~idx,i));
         
         if r < 0
-           all_data(:,i) = all_data(:,i)*-1;
-           CCA.V(:,i,Mode) = CCA.V(:,i,Mode)*-1;
-           CCA.U(:,i,Mode) = CCA.U(:,i,Mode)*-1; 
+            all_data(:,i) = all_data(:,i)*-1;
+            CCA.V(:,i,Mode) = CCA.V(:,i,Mode)*-1;
+            CCA.U(:,i,Mode) = CCA.U(:,i,Mode)*-1;
         end
     end
     
@@ -294,122 +296,90 @@ end
 % %% CCA
 % % x = behaviours we are interested in (NART,APM,VOSP,CANC,LANG)
 % % y = the individual MCA loadings from previous step
-% 
+%
 % disp('--------------------------------------');
 % disp('CANONICAL CORRELATION ANALYSIS');
-% 
+%
 % behaviour = behav.dataTF;
 % [CCA.A, CCA.B, CCA.R, CCA.U, CCA.V, CCA.stats]=canoncorr(behaviour,MCA.IndWeights);
 % disp(['p values for each CCA mode: ',num2str(CCA.stats.p)]);
-% 
+%
 % tmp = corr(CCA.V(:,1),MCA.input)';
 % %CCA.EdgeMode = zeros(Node,Node);
 % %CCA.EdgeMode(logical(MCA.index)) = tmp*-1;
 % save example_modelData.mat CCA
-% 
+%
 % % code for testing:
 % X = behaviour;Y=MCA.IndWeights; save LOOdata.mat X Y;clear X Y
 % save space_workspace.mat
-% CCA.conload = corr(behaviour,CCA.U); 
-% 
+% CCA.conload = corr(behaviour,CCA.U);
+%
 % for i = 1:2
 %     MAT = zeros(size(MCA.index));
 %     data = corr(CCA.V(:,i),MCA.input)';
 %     MAT(MCA.index==1) = data;
 %     CCA.Mode_MAT(:,:,i) = MAT;
 % end
-%% Hub analysis
-
-% could do it at a group/Mode level
-% or you could make inference like, loss of eff is associated with greater
-% CCA loading (& worse behaviour).
-
-disp('--------------------------------------');
-disp('HUB ANALYSIS');
-addpath('/Users/luke/Documents/Projects/StrokeNet/Data/BCT/2017_01_15_BCT/')
-
-use_parcellation=1; %do you want to use predetermined modules, or calculate your own?
-
-mode = 1;
-MAT = CCA.Mode_MAT(:,:,mode)+CCA.Mode_MAT(:,:,mode)';
-
-% disregard 0 values - they were not included in CCA model (not lesioned)
-% take mean, rather than sum to account for number of connections
-MAT(MAT==0) = nan;
-
-% CCA degree - node level CCA weighting using absolute values
-CCAdeg = nanmean(abs(MAT));
-
-% Normal, "pre" group averaged connectome degree
-w = mean(Cpre,3) + mean(Cpre,3)';
-PREdeg = degrees_und(w);
-
-if use_parcellation==1
-    Ci = Yeo8Index;
-else
-    Ci = modularity_und(w,1);
-end
-
-% Why is this interesting: Correlating node level CCA loadings with node
-% level hub properties. Between-network hubs are more likely to be
-% implicated in the CCA-low dimensional representation.
-
-module_degree_z = module_degree_zscore(w,Ci);
-part_coefficient = participation_coef(w,Ci);
-
-subplot(1,4,1)
-scatter(CCAdeg,part_coefficient);
-[r,p] = corr(CCAdeg',part_coefficient)
-lsline
-
-subplot(1,4,2)
-scatter(CCAdeg,module_degree_z);
-[r,p] = corr(CCAdeg',module_degree_z)
-lsline
-
-subplot(1,4,3)
-scatter(PREdeg,part_coefficient);
-lsline
-
-subplot(1,4,4)
-scatter(PREdeg,module_degree_z);
-lsline
-
-% summed loss of P-hub (divided by degree or something)
-for i = 1:size(Cdiff,3)
-    w = Cdiff(:,:,i) + Cdiff(:,:,i)';
-    nodes_implicated = find(sum(w));
-    sum_P(i) = sum(part_coefficient(nodes_implicated));
-    sum_M(i) = sum(module_degree_z(nodes_implicated));
-end
-figure
-
-% Why is this interesting: Correlating individual differences in loss of participant coefficient with
-% IndDiff CCA-loading...suggests that higher loadings are associated with
-% breakdown in between network-conn but not within-network conn
-subplot(1,2,1)
-V = nanmean(CCA.V(:,:,1),2);
-scatter(abs(V),sum_P);
-lsline
-[r,p] = corr(abs(V),sum_P')
-
-subplot(1,2,2)
-scatter(abs(V),sum_M);
-lsline
-[r,p] = corr(abs(V),sum_M')
-
-% test for difference in correlation
-
-% save results in structure
-HUB.part_coefficient = part_coefficient;
-HUB.module_degree_z = module_degree_z;
-%% Save results
-close all
-diary off
+%% Network description analysis
 if strcmp(parc,'voxelwise')
     
 else
+% Nothing complicated, just averaging the CCA loadings within/between each
+% network. I calculate this seperately for positive and negative weights,
+% as these could average each other out. I also remove non loaded
+% connections (i.e. =0) to avoid them influencing the results also.
+
+% Because the CCA has already given weights, its not clear if (or how)
+% significance could be calculated. My intuition is that it would be
+% double-dipping anyway.
+
+net = Yeo8Index;
+for mode = 1:2
+    
+    cm = CCA.Mode_MAT(:,:,mode);
+    cm = cm+cm';
+    
+    idx = logical(triu(ones(size(cm)),1));
+    for pos_neg = 1:2
+        if pos_neg==1
+            % pos weights only
+            new_cm = cm;
+            new_cm(new_cm <=0) = NaN;
+            
+        elseif pos_neg==2
+            new_cm = cm;
+            new_cm(new_cm >=0) = NaN;
+        end
+        
+        for i = 1:max(net)
+            net_i = net==i;
+            
+            for j = 1:max(net)
+                net_j = net==j;
+                
+                data = new_cm(net_i,net_j);
+                data = data(:);
+                data(isnan(data)) = [];
+                
+                if length(data)>50
+                    net_value(i,j,pos_neg,mode) = mean(data);
+                else
+                    net_value(i,j,pos_neg,mode) = NaN;
+                end
+            end
+        end
+    end
+end
+CCA.net_value = net_value;
+end
+%% Save results
+close all
+diary off
+MCA.Varweights = []; %keeps file size small
+if strcmp(parc,'voxelwise')
+        save([resultsdir,'results.mat'],'CCA','MCA','Cdiff','Cpre','behav')
+else
     network_def = Yeo8Index;
     network_labels = {'Vis' 'SomMat' 'DorstAttn' 'SalVentAttn' 'Limbic' 'Control' 'Default' 'SC'};
-    save([resultsdir,'results.mat'],'CCA','COG','HUB','Cdiff','Cpre','behav','network_def','network_labels')
+    save([resultsdir,'results.mat'],'CCA','COG','MCA','Cdiff','Cpre','behav','network_def','network_labels')
 end
