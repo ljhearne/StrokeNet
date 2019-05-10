@@ -4,9 +4,6 @@ This directory contains code for the stroke lesion network mapping project. This
 ## Lesion network mapping
 If you are interested in using the matlab code to do lesion network mapping with LEAD DBS see scripts/NormativeConnectomes for the matlab code. While the code is commented and relatively readable I have no future plans to release this code in a more 'official' capacity, but I'm happy to answer questions. Most of the hard work is all within the LEAD DBS package and credit goes to Andreas Horn.
 
-### 25/02/2019 NOTE!
-I'm writing a new version of the normative connectomes that takes a different approach. The current code is still useable but I hope to update it in the future. It should be much faster, more intuitive + include functional data! woohoo!
-
 ## Instructions for coauthors
 Folders should be organized like so:
 ```
