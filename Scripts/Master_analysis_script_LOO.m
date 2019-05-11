@@ -23,14 +23,14 @@ participant_demographics = 0;   % Do you want to complete demographics analysis?
 
 run_lesion_reg = 0;             % Do you want to regress lesion size?
 
-run_MCA        = 0;             % Do you want to perform the LOO MCA? This is slow.
+run_MCA        = 1;             % Do you want to perform the LOO MCA? This is slow.
 
 CCA_perms = 1000;               % Number of permutations for significance testing
 
 edgeThreshold  = 0;             % When is an edge considered 'lesioned' within
 % participant
 
-lesionAffection = 4;            % How many edges across participants need to be lesioned
+lesionAffection = 3;            % How many edges across participants need to be lesioned
 % for that edge to be included in the MCA?
 % For LOO, it should be at least 1.
 
