@@ -18,19 +18,19 @@ DocsPath = '/Users/luke/Documents/Projects/StrokeNet/Docs/';
 addpath('functions');
 
 %% Inputs
-parc = 'voxelwise';
+parc = 'Sch214';
 participant_demographics = 0;   % Do you want to complete demographics analysis?
 
 run_lesion_reg = 0;             % Do you want to regress lesion size?
 
-run_MCA        = 1;             % Do you want to perform the LOO MCA? This is slow.
+run_MCA        = 0;             % Do you want to perform the LOO MCA? This is slow.
 
 CCA_perms = 1000;               % Number of permutations for significance testing
 
 edgeThreshold  = 0;             % When is an edge considered 'lesioned' within
 % participant
 
-lesionAffection = 3;            % How many edges across participants need to be lesioned
+lesionAffection = 1;            % How many edges across participants need to be lesioned
 % for that edge to be included in the MCA?
 % For LOO, it should be at least 1.
 
@@ -371,6 +371,65 @@ for mode = 1:2
     end
 end
 CCA.net_value = net_value;
+end
+
+%% Neurosynth decoding
+% performed in python, but export the nodes of interest here
+
+%find nodes of interest
+for mode=1:2
+    cm = CCA.Mode_MAT(:,:,mode);
+    cm = cm+cm';
+
+    idx = logical(triu(ones(size(cm)),1));
+
+    for pos_neg = 1:2
+        if pos_neg==1
+            % pos weights only
+            new_cm = cm;
+            new_cm(new_cm <=0) = NaN;
+
+        elseif pos_neg==2
+            new_cm = cm;
+            new_cm(new_cm >=0) = NaN;
+        end
+
+        new_cm(isnan(new_cm))=0;
+        CCA_degree = sum(abs(new_cm));
+
+        [~,top_CCA_nodes] = sort(CCA_degree,'descend');
+        nodes(:,pos_neg,mode) = top_CCA_nodes;
+    end
+end
+
+CCA.nodes = nodes;
+
+% number of participants with direct (lesion-nii) damage to such nodes?
+% interesting for two reasons - show how common this damage is + show that
+% the extended rois tend not be damaged as often
+disp('... loading voxelwise data');
+    for p = 1:N
+        f = [DataPath,'lesionMaps/3_rNii/r',P_ID{p},'.nii'];
+        [~,tmp] = read(f);
+        lesionMaps(:,:,:,p) = double(tmp);
+    end
+
+for i = 1:5
+    node = nodes(i,1);
+    o = [];
+    idx = template==node;
+    idx = idx(:);
+    lesionMaps_2d = reshape(lesionMaps,[size(idx,1),size(lesionMaps,4)]);
+    o = sum(lesionMaps_2d(idx,:),1);
+    disp(['lesion dmg:',num2str(sum(o>0)/size(lesionMaps,4)*100)])
+    
+    o = [];
+    for p = 1:N
+        c = Cdiff(:,:,p)+Cdiff(:,:,p)';
+        o(p) = sum(c(node,:)>0);
+    end
+    o = sum(o>0);
+    disp(['conn dmg:',num2str(o/size(lesionMaps,4)*100)])
 end
 %% Save results
 close all
