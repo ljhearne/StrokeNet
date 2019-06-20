@@ -18,8 +18,10 @@ DocsPath = '/Users/luke/Documents/Projects/StrokeNet/Docs/';
 addpath('functions');
 
 %% Inputs
-parc = 'Sch214';
-participant_demographics = 0;   % Do you want to complete demographics analysis?
+parc = 'Sch240';
+participant_demographics = 1;   % Do you want to complete demographics analysis?
+
+gen_lesiondensity_plot = 0;     % Do you want to do a lesion density plot?
 
 run_lesion_reg = 0;             % Do you want to regress lesion size?
 
@@ -34,7 +36,7 @@ lesionAffection = 1;            % How many edges across participants need to be 
 % for that edge to be included in the MCA?
 % For LOO, it should be at least 1.
 
-num_comps = 10;                 % number of MCA components included in CCA
+num_comps = 5;                 % number of MCA components included in CCA
 
 num_modes = 2;                  % number of modes to investigate
 
@@ -70,7 +72,13 @@ elseif strcmp(parc,'Sch214')
     load([DocsPath,'Atlas/Schaefer200/',num2str(nRoi),'parcellation_Yeo8Index.mat']); % atlas network affiliation
     [Cpre,Cpost,nodata] = load_connectomes([DataPath,'connectomes/',conbound,parc,'/']); % connectomes
     resultsdir = [DocsPath,'Results/',conbound,parc,'/'];
-    
+elseif strcmp(parc,'Sch240')
+     nRoi = 240; % label for parcellation
+    [~,template] = read([DocsPath,'Atlas/Schaefer200/rSchaefer200_plus_HOAAL.nii']); %link to template
+    load([DocsPath,'Atlas/Schaefer200/',num2str(nRoi),'COG.mat']); % atlas COG
+    load([DocsPath,'Atlas/Schaefer200/',num2str(nRoi),'parcellation_Yeo8Index.mat']); % atlas network affiliation
+    [Cpre,Cpost,nodata] = load_connectomes([DataPath,'connectomes/',conbound,parc,'/']); % connectomes
+    resultsdir = [DocsPath,'Results/',conbound,parc,'/'];
 elseif strcmp(parc,'voxelwise')
     %we use Schaefer 240 as a reference to enable compatibility with the
     %current code
@@ -95,6 +103,7 @@ diary([resultsdir,'results.txt']);
 % Exclusions
 % exclude participants with missing behavioural or imaging data.
 exclude = sum(isnan(behav.data),2)>0; %missing behav data
+disp([num2str(sum(exclude)),' subjects dropped due to missing behaviour']);
 exclude = exclude+nodata>0; %missing lesion maps
 behav.data(exclude,:) = [];
 behav.dataDemo(exclude,:) = [];
@@ -104,6 +113,7 @@ Cpost(:,:,exclude) = [];
 Cdiff = Cpre-Cpost;
 
 exclude = squeeze(sum(sum(Cdiff,1),2)==0); %missing connectivity data
+disp([num2str(sum(exclude)),' subjects dropped due to no tracts']);
 behav.data(exclude,:) = [];
 behav.dataDemo(exclude,:) = [];
 P_ID(exclude) = [];
@@ -140,10 +150,6 @@ if strcmp(parc,'voxelwise') || run_lesion_reg==1
         lesionMaps(:,:,:,p) = double(tmp);
     end
     disp('... finished loading voxelwise data');
-    lesion_distribution = sum(lesionMaps,4);
-    
-    % save the overlap nifti for visualization outside of matlab
-    mat2nii(lesion_distribution,[resultsdir,'LesionOverlap.nii'],size(lesion_distribution),32,f)
 end
 
 %% Participant demographics
@@ -157,6 +163,21 @@ if participant_demographics==1
     
 end
 
+%% Lesion density plot
+if gen_lesiondensity_plot == 1
+    disp('... loading voxelwise data for lesion density plot');
+    for p = 1:N
+        f = [DataPath,'lesionMaps/2_Nii/',P_ID{p},'.nii'];
+        [~,tmp] = read(f);
+        temp(:,:,:,p) = double(tmp);
+    end
+    disp('... finished loading voxelwise data');
+    lesion_distribution = sum(temp,4);
+    
+    % save the overlap nifti for visualization outside of matlab
+    mat2nii(lesion_distribution,[resultsdir,'LesionOverlap.nii'],size(lesion_distribution),32,f)
+    
+end
 %% Dimensionality reduction: multiple correspondance analysis (MCA)
 disp('--------------------------------------');
 disp('MULTIPLE CORRESPONDANCE ANALYSIS');
@@ -235,7 +256,7 @@ disp(['CCA: permutation-based p value for Mode 2: ',num2str(p)])
 % Each behaviour
 for i = 1:num_meas
     disp(['For variable: ',num2str(i),': ',Blabels{i},' r = ',num2str(CCA.predicted_r(i)),', p = ',num2str(CCA.predicted_p(i))])
-    p = invprctile(CCA.perm_predicted_r(:,1),CCA.predicted_r(i));
+    p = invprctile(CCA.perm_predicted_r(:,1),CCA.predicted_r(i,1));
     disp([9 'CCA: permutation-based p value for Mode 1: ', num2str(p)])
 end
 
@@ -258,6 +279,16 @@ for comp = 1:num_comps
     end
 end
 
+% MCA individual weightings
+MCA.Indweights_avg = zeros(N,N-2,N);
+for i = 1:N
+    temp = zeros(N,N-2);
+    temp (i,:) = NaN;
+    idx =~ isnan(temp);
+    temp(idx) = MCA.Indweights(:,:,i);
+    MCA.Indweights_avg(:,:,i) = temp;
+end
+MCA.Indweights_avg = nanmean(MCA.Indweights_avg,3);
 % Mode behavioural loadings
 %CCA.conload = corr(behaviour,CCA.U);
 
@@ -407,30 +438,30 @@ CCA.nodes = nodes;
 % number of participants with direct (lesion-nii) damage to such nodes?
 % interesting for two reasons - show how common this damage is + show that
 % the extended rois tend not be damaged as often
-disp('... loading voxelwise data');
-    for p = 1:N
-        f = [DataPath,'lesionMaps/3_rNii/r',P_ID{p},'.nii'];
-        [~,tmp] = read(f);
-        lesionMaps(:,:,:,p) = double(tmp);
-    end
-
-for i = 1:5
-    node = nodes(i,1);
-    o = [];
-    idx = template==node;
-    idx = idx(:);
-    lesionMaps_2d = reshape(lesionMaps,[size(idx,1),size(lesionMaps,4)]);
-    o = sum(lesionMaps_2d(idx,:),1);
-    disp(['lesion dmg:',num2str(sum(o>0)/size(lesionMaps,4)*100)])
-    
-    o = [];
-    for p = 1:N
-        c = Cdiff(:,:,p)+Cdiff(:,:,p)';
-        o(p) = sum(c(node,:)>0);
-    end
-    o = sum(o>0);
-    disp(['conn dmg:',num2str(o/size(lesionMaps,4)*100)])
-end
+% disp('... loading voxelwise data');
+%     for p = 1:N
+%         f = [DataPath,'lesionMaps/3_rNii/r',P_ID{p},'.nii'];
+%         [~,tmp] = read(f);
+%         lesionMaps(:,:,:,p) = double(tmp);
+%     end
+% 
+% for i = 1:5
+%     node = nodes(i,1);
+%     o = [];
+%     idx = template==node;
+%     idx = idx(:);
+%     lesionMaps_2d = reshape(lesionMaps,[size(idx,1),size(lesionMaps,4)]);
+%     o = sum(lesionMaps_2d(idx,:),1);
+%     disp(['lesion dmg:',num2str(sum(o>0)/size(lesionMaps,4)*100)])
+%     
+%     o = [];
+%     for p = 1:N
+%         c = Cdiff(:,:,p)+Cdiff(:,:,p)';
+%         o(p) = sum(c(node,:)>0);
+%     end
+%     o = sum(o>0);
+%     disp(['conn dmg:',num2str(o/size(lesionMaps,4)*100)])
+% end
 %% Save results
 close all
 diary off
