@@ -20,10 +20,10 @@ nodata = zeros(length(P_ID),1);
 for i = 1:length(P_ID)
     try
         %_invnodelengthweights
-        file = [path,P_ID{i},'_NoLesion_SC','.csv'];
+        file = [path,P_ID{i},'_NoLesion_SC_invlengthweights','.csv'];
         Cpre(:,:,i) = dlmread(file,sep);
         
-        file = [path,P_ID{i},'_Lesion_SC','.csv'];
+        file = [path,P_ID{i},'_Lesion_SC_invlengthweights','.csv'];
         Cpost(:,:,i) = dlmread(file,sep);
         
         Cpresym(:,:,i) = Cpre(:,:,i)+Cpre(:,:,i)';

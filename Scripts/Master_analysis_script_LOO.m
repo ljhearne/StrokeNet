@@ -18,25 +18,25 @@ DocsPath = '/Users/luke/Documents/Projects/StrokeNet/Docs/';
 addpath('functions');
 
 %% Inputs
-parc = 'Sch240';
-participant_demographics = 1;   % Do you want to complete demographics analysis?
+parc = 'voxelwise';
+participant_demographics = 0;   % Do you want to complete demographics analysis?
 
 gen_lesiondensity_plot = 0;     % Do you want to do a lesion density plot?
 
 run_lesion_reg = 0;             % Do you want to regress lesion size?
 
-run_MCA        = 0;             % Do you want to perform the LOO MCA? This is slow.
+run_MCA        = 1;             % Do you want to perform the LOO MCA? This is slow.
 
-CCA_perms = 1000;               % Number of permutations for significance testing
+CCA_perms = 100;               % Number of permutations for significance testing
 
 edgeThreshold  = 0;             % When is an edge considered 'lesioned' within
 % participant
 
-lesionAffection = 1;            % How many edges across participants need to be lesioned
+lesionAffection = 4;            % How many edges across participants need to be lesioned
 % for that edge to be included in the MCA?
 % For LOO, it should be at least 1.
 
-num_comps = 5;                 % number of MCA components included in CCA
+num_comps = 10;                 % number of MCA components included in CCA
 
 num_modes = 2;                  % number of modes to investigate
 
@@ -74,7 +74,8 @@ elseif strcmp(parc,'Sch214')
     resultsdir = [DocsPath,'Results/',conbound,parc,'/'];
 elseif strcmp(parc,'Sch240')
      nRoi = 240; % label for parcellation
-    [~,template] = read([DocsPath,'Atlas/Schaefer200/rSchaefer200_plus_HOAAL.nii']); %link to template
+    template_file = [DocsPath,'Atlas/Schaefer200/rSchaefer200_plus_HOAAL.nii'];
+    [~,template] = read(template_file); %link to template
     load([DocsPath,'Atlas/Schaefer200/',num2str(nRoi),'COG.mat']); % atlas COG
     load([DocsPath,'Atlas/Schaefer200/',num2str(nRoi),'parcellation_Yeo8Index.mat']); % atlas network affiliation
     [Cpre,Cpost,nodata] = load_connectomes([DataPath,'connectomes/',conbound,parc,'/']); % connectomes
@@ -82,9 +83,9 @@ elseif strcmp(parc,'Sch240')
 elseif strcmp(parc,'voxelwise')
     %we use Schaefer 240 as a reference to enable compatibility with the
     %current code
-    [Cpre,Cpost,nodata] = load_connectomes([DataPath,'connectomes/conbound30/Sch214/']); % connectomes
+    [Cpre,Cpost,nodata] = load_connectomes([DataPath,'connectomes/conbound20/Sch240/']); % connectomes
     resultsdir = [DocsPath,'Results/',parc,'/'];
-    
+    gen_lesiondensity_plot = 1;
 end
 
 [data, key, P_ID] = load_stroke_behav; % load behaviour
@@ -124,7 +125,7 @@ Cdiff(:,:,exclude) = [];
 %transform the data to avoid weighting the CCA unfairly (Smith et al.,
 %2016). A log or log2p transform may also be considered.
 behav.dataTF = normal_transform(behav.data);
-
+behav.dataTF = behav.dataTF*-1; % to make lesions more interpretable
 %check the behavioural data
 for i = 1:size(behav.dataTF,2)
     h = kstest(behav.dataTF(:,i));
@@ -159,8 +160,12 @@ if participant_demographics==1
     
     disp('--------------------------------------');
     disp('PARTICIPANT AND NORM-CONNECTOME INFORMATION');
-    print_analysis_info(P_ID,behav.dataDemo,parc,Cpre,Cpost,conbound)
-    
+    print_analysis_info(P_ID,behav.dataDemo,parc,Cpre,Cpost,conbound);
+    data = [[mean(behav.dataDemo)',std(behav.dataDemo)',min(behav.dataDemo)',max(behav.dataDemo)'];[mean(behav.data)',std(behav.data)',min(behav.data)',max(behav.data)']];
+    export_table = table(data(:,1),data(:,2),data(:,3),data(:,4));
+    export_table.Properties.VariableNames = {'Mean','STD','Lower','Upper'};
+    export_table.Properties.RowNames = {'Age','Gender','Education','Chronicity','NART','APM','Q1','Q6','CoC'};
+    writetable(export_table,[resultsdir,'table1.csv'], 'WriteRowNames',1)
 end
 
 %% Lesion density plot
@@ -266,16 +271,18 @@ end
 MCA.Eigenvalues = MCA.Eigenvalues(:,1:num_comps);
 
 % MCA components in brain space
-for comp = 1:num_comps
-    data = squeeze(MCA.Varweights(:,comp,:));
-    MAT = zeros(size(MCA.index));
-    MAT(MCA.index==1) = mean(data,2);
-    MCA.VarWeights_MAT(:,:,comp) = MAT;
-    
-    if strcmp(parc,'voxelwise')==1
-        MAT = reshape(MAT,size(lesion_distribution));   %Mode in NII space
-        MCA.VarWeights_Nifti(:,:,:,comp) = MAT;
-        mat2nii(MAT,[resultsdir,'MCA/Component',num2str(comp),'.nii'],size(lesion_distribution),32,f);
+if strcmp(parc,'voxelwise')==0
+    for comp = 1:num_comps
+        data = squeeze(MCA.Varweights(:,comp,:));
+        MAT = zeros(size(MCA.index));
+        MAT(MCA.index==1) = mean(data,2);
+        MCA.VarWeights_MAT(:,:,comp) = MAT;
+
+    %     if strcmp(parc,'voxelwise')==1
+    %         MAT = reshape(MAT,size(lesion_distribution));   %Mode in NII space
+    %         MCA.VarWeights_Nifti(:,:,:,comp) = MAT;
+    %         mat2nii(MAT,[resultsdir,'MCA/Component',num2str(comp),'.nii'],size(lesion_distribution),32,f);
+    %     end
     end
 end
 
@@ -315,10 +322,22 @@ for Mode = 1:2
     MAT(MCA.index==1) = data;
     CCA.Mode_MAT(:,:,Mode) = MAT;
     
+    % write results to nifti
+    disp('...writing results to nifti');
     if strcmp(parc,'voxelwise')==1
         MAT = reshape(MAT,size(lesion_distribution));   %Mode in NII space
         CCA.Mode_Nifti(:,:,:,comp) = MAT;
         mat2nii(MAT,[resultsdir,'CCA_Mode',num2str(Mode),'.nii'],size(lesion_distribution),32,f);
+    else
+        MAT = zeros(size(template));
+        CCA_degree = sum(CCA.Mode_MAT(:,:,Mode)+CCA.Mode_MAT(:,:,Mode)');
+        for roi=201:nRoi
+            idx = template==roi;
+            MAT(idx) = CCA_degree(roi);
+        end
+        mat2nii(MAT,[resultsdir,'CCA_Mode',num2str(Mode),'.nii'],size(template),32,template_file);
+        csvwrite([resultsdir,'CCA_Mode',num2str(Mode),'_vector.txt'],CCA_degree(1:200)');
+
     end
     
     CCA.behload(:,Mode) = corr(behav.dataTF,nanmean(CCA.U(:,:,Mode),2));
@@ -473,3 +492,15 @@ else
     network_labels = {'Vis' 'SomMat' 'DorstAttn' 'SalVentAttn' 'Limbic' 'Control' 'Default' 'SC'};
     save([resultsdir,'results.mat'],'CCA','COG','MCA','Cdiff','Cpre','behav','network_def','network_labels')
 end
+
+% save PRE for graphAnalysis
+avg_Cpre = mean(Cpre,3);
+save([resultsdir,'preConnectome.mat'],'avg_Cpre');
+
+figure('Color','w','Position',[1200 425 300 200]); hold on
+plot(mean(MCA.Eigenvalues,1)*100,'LineWidth',2)
+%line([0 10],[]
+set(gca,'FontName', 'Helvetica','FontSize', 12);
+xlabel('MCA component');
+ylabel('Variance explained (%)');
+saveas(gcf,[resultsdir,'scree_plot.jpeg']);

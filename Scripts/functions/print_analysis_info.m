@@ -1,4 +1,4 @@
-function print_analysis_info(P_ID,demo_data,parc,Cpre,Cpost,conbound)
+function [ConnectomeAge] = print_analysis_info(P_ID,demo_data,parc,Cpre,Cpost,conbound)
 % print and save basic participant and connectome information
 % assumes demo_data =  demographic variables (age,gender,education,chronicity)
 % includes hard coding - 
@@ -18,6 +18,7 @@ disp(['Mean chronicity = ',num2str(mean(demo_data(:,3))),...
     ', std = ',num2str(std(demo_data(:,3))),...
     ', range = ',num2str(min(demo_data(:,3))),...
     ' - ',num2str(max(demo_data(:,3)))]);
+% create table
 
 %% Information about normative connectomes
 nki_data = load(['/Users/luke/Documents/Projects/StrokeNet/Data/NKIdetails.mat']);
@@ -63,5 +64,26 @@ if strcmp(parc,'voxelwise')==0
         ' & post = ',num2str(mean(density.post))]);
 end
 
+figure('Color','w','Position',[1200 425 600 200]); hold on
+age = demo_data(:,1);
+[~,idx] = sort(age,'ascend');
+
+width = .4;
+for i = 1:length(idx)
+    sub = idx(i);
+    norm_data = ConnectomeAge.raw{sub};
+    for draw_line = [25,50,75]
+        line([i-width,i+width],[prctile(norm_data,draw_line),prctile(norm_data,draw_line)],'Color',[0.5,0.5,0.5])
+    end
+    line([i-width,i-width],[prctile(norm_data,25),prctile(norm_data,75)],'Color',[0.5,0.5,0.5])
+    line([i+width,i+width],[prctile(norm_data,25),prctile(norm_data,75)],'Color',[0.5,0.5,0.5])
+    line([i,i],[prctile(norm_data,75),max(norm_data)],'Color',[0.5,0.5,0.5])
+    line([i,i],[prctile(norm_data,25),min(norm_data)],'Color',[0.5,0.5,0.5])
+    scatter(i,age(sub),50,'k','filled'); hold on
+end
+set(gca,'FontName', 'Helvetica','FontSize', 12,'ylim',[18 91],'xlim',[0 81]);
+xlabel('Participant');
+ylabel('Age (years)');
+saveas(gcf,'Normative_connectome_plot.jpeg');
 end
 
