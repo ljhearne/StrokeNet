@@ -1,7 +1,7 @@
 # StrokeNet Project
 This directory contains code for the stroke lesion network mapping project.
 
-##
+## Analysis
 The primary analysis for this project is a leave-one-out prediction of multiple behaviours using canonical correlation analysis
 
 ## Lesion network mapping
