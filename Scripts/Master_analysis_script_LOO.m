@@ -1,15 +1,6 @@
 %% Summary
 % Stroke analysis master script
 
-% TO DO
-% - Other behavioural variables that we might need to think about: first
-% language and chronicity. At the least I should plot chronicity as a
-% histogram
-% - Clean up voxel versus connectivity related code (figures in particular)
-% - Results should be saved in a parcellation by parcellation fashion
-% - Implement /(think about? / maybe confer with someone regarding) leave
-% one out prediction analysis.
-
 clearvars
 close all
 
@@ -18,21 +9,21 @@ DocsPath = '/Users/luke/Documents/Projects/StrokeNet/Docs/';
 addpath('functions');
 
 %% Inputs
-parc = 'voxelwise';
+parc = 'Sch240';
 participant_demographics = 0;   % Do you want to complete demographics analysis?
 
 gen_lesiondensity_plot = 0;     % Do you want to do a lesion density plot?
 
 run_lesion_reg = 0;             % Do you want to regress lesion size?
 
-run_MCA        = 1;             % Do you want to perform the LOO MCA? This is slow.
+run_MCA        = 0;             % Do you want to perform the LOO MCA? This is slow.
 
-CCA_perms = 100;               % Number of permutations for significance testing
+CCA_perms = 10000;               % Number of permutations for significance testing
 
 edgeThreshold  = 0;             % When is an edge considered 'lesioned' within
 % participant
 
-lesionAffection = 4;            % How many edges across participants need to be lesioned
+lesionAffection = 1;            % How many edges across participants need to be lesioned
 % for that edge to be included in the MCA?
 % For LOO, it should be at least 1.
 
@@ -238,8 +229,8 @@ for i = 1:CCA_perms
     r = 1:N;
     r = r(randperm(length(r)));
     tmp = run_CCA_LOO(behav.dataTF(r,:),MCA,num_comps,num_modes,norm_prior);
-    CCA.perm_r(i) = mean(tmp.r(:,1));
-    CCA.perm_predicted_r(i,:) = tmp.predicted_r(:,1); %only take first mode
+    CCA.perm_r(i) = max(max(tmp.r)); % take the max
+    CCA.perm_predicted_r(i,:) = max(max(tmp.predicted_r));
     
     if i==90
         disp([ 9 num2str(i),' perms are finished...'])
@@ -490,12 +481,9 @@ if strcmp(parc,'voxelwise')
 else
     network_def = Yeo8Index;
     network_labels = {'Vis' 'SomMat' 'DorstAttn' 'SalVentAttn' 'Limbic' 'Control' 'Default' 'SC'};
-    save([resultsdir,'results.mat'],'CCA','COG','MCA','Cdiff','Cpre','behav','network_def','network_labels')
+    save([resultsdir,'results.mat'],'CCA','COG','MCA','Cdiff','Cpre','behav','network_def','network_labels','P_ID','Cpost')
 end
 
-% save PRE for graphAnalysis
-avg_Cpre = mean(Cpre,3);
-save([resultsdir,'preConnectome.mat'],'avg_Cpre');
 
 figure('Color','w','Position',[1200 425 300 200]); hold on
 plot(mean(MCA.Eigenvalues,1)*100,'LineWidth',2)

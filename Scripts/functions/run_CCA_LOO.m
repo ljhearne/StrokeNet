@@ -7,7 +7,6 @@ DocsPath = '/Users/luke/Documents/Projects/StrokeNet/Docs/';
 
 N = size(behav_data,1);
 num_meas = size(behav_data,2);
-
 CCA.A = zeros(num_meas,N,num_modes);
 CCA.B = zeros(num_comps,N,num_modes);
 CCA.U = zeros(N,N,num_modes);
