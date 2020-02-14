@@ -14,7 +14,7 @@ from tqdm import tqdm
 def load_data(parcellation='Sch240',
               n_connectomes='20',
               behaviour_list=['APM', 'NART_IQ', 'Q1_TotalWords',
-                              'Q6_TotalCorrect', 'CoC_abs_rev']):
+                              'Q6_TotalCorrect', 'CoC_abs_rev'],load_nifti=True):
     '''
     Function that loads behaviour as a pandas dataframe and loads connectivity
     matrices into a list of numpy arrays - Lesion, NoLesion and Diff.
@@ -72,13 +72,16 @@ def load_data(parcellation='Sch240',
         CM[conn_type] = np.delete(CM[conn_type], np.where(~index)[0], axis=2)
     
     # load nifti data
-    dir_nifti = '/Users/luke/Documents/Projects/StrokeNet/Data/' \
-     + 'lesionMaps/3_rNii/'
-    
-    # load nifti files (after dropping other subjects)
-    nifti_data = np.zeros((182,218,182,len(df)))
-    for i, subj in tqdm(enumerate(df['ID'])):
-        file = dir_nifti+'r'+subj+'.nii'
-        nifti_data[:,:,:,i] = nib.load(file).get_data()
+    if load_nifti is True:
+        dir_nifti = '/Users/luke/Documents/Projects/StrokeNet/Data/' \
+         + 'lesionMaps/3_rNii/'
 
-    return df, CM, nifti_data
+        # load nifti files (after dropping other subjects)
+        nifti_data = np.zeros((182,218,182,len(df)))
+        for i, subj in tqdm(enumerate(df['ID'])):
+            file = dir_nifti+'r'+subj+'.nii'
+            nifti_data[:,:,:,i] = nib.load(file).get_data()
+
+        return df, CM, nifti_data
+    else:
+        return df, CM

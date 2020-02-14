@@ -63,14 +63,14 @@ def behav_heatmap(data,labels,title=None):
     print(corr)
     mask = np.zeros_like(corr)
     mask[np.triu_indices_from(mask)] = True
-    plt.figure(figsize=(3.2, 2.4))
+    plt.figure(figsize=(2.4, 1.8))
     sns.heatmap(corr,
                 vmin=-0,
                 vmax=0.5,
                 cmap='viridis',
                 center=0,
                 annot=True,
-                fmt='.1f',
+                fmt='.2f',
                 mask=mask,
                 linewidths=1,
                 xticklabels=labels[0:4],
@@ -100,9 +100,9 @@ def MCA_cm_plots(mca,MCA_components,MNIcoords,num_edge=200,title=None):
                                  colorbar=False,
                                  display_mode='z',
                                  edge_kwargs={'Alpha':0.75,'lw':1})
-        plt.title(np.round(mca.eigenvalues_[component],2))
+        plt.title(np.round(mca.eigenvalues_[component]*100,2))
     if title is not None:
-        plt.savefig('MCA_edgeweights_'+title,dpi=600)
+        plt.savefig(title+'MCA_edgeweights.svg',dpi=600)
     plotting.show()
 
     # plot the colorbar
@@ -120,7 +120,7 @@ def MCA_cm_plots(mca,MCA_components,MNIcoords,num_edge=200,title=None):
                              display_mode='z',
                              edge_kwargs={'Alpha':0.75,'lw':1})
     if title is not None:
-        plt.savefig('MCA_colorbar_'+title,dpi=600)
+        plt.savefig(title+'MCA_colorbar.svg',dpi=600)
     plotting.show()
 
     # plot the individual MCA weights
@@ -130,7 +130,7 @@ def MCA_cm_plots(mca,MCA_components,MNIcoords,num_edge=200,title=None):
     plt.xlabel('Components')
     plt.ylabel('Participants')
     if title is not None:
-        plt.savefig('MCA_indweights_'+title,dpi=600)
+        plt.savefig(title+'MCA_indweights.svg',dpi=600)
     plt.show()
     
 def CCA_UV_plot(cca,mode=0,title=None):
@@ -176,7 +176,7 @@ def CCA_behav_plot(cca,labels,mode=0,title=None):
     y_pos = np.arange(len(x))
     colors = sns.cm.vlag((x + 1) / 2)
 
-    plt.figure(figsize=(1,2))
+    plt.figure(figsize=(1.5,2))
     plt.barh(y_pos, x, align='center', color=colors, ecolor=colors)
     plt.xlim(-1, 1)
     plt.yticks(range(len(labels)), labels)
@@ -215,9 +215,7 @@ def CCA_nifti_brain_plot(cca,mode=0,title=None):
         plt.savefig(title,dpi=600)
     plotting.show()
     
-def network_plot(network_mean,network_labels,mode=0,title=None):
-    vmin=0.15
-    vmax=0.45
+def network_plot(network_mean,network_labels,mode=0,title=None,vmin=0.15,vmax=0.55):
     
     for direction in ['pos','neg']:
         data = network_mean[direction][:,:,mode]
