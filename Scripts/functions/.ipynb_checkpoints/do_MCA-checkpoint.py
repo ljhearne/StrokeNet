@@ -1,4 +1,4 @@
-from prince import MCA
+from prince import prince
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning) 
 
@@ -9,7 +9,7 @@ def do_MCA(X,n_components=10):
     '''
     warnings.filterwarnings("ignore", category=FutureWarning) 
     # run the MCA using prince
-    mca = MCA(n_components=n_components)
+    mca = prince.MCA(n_components=n_components)
     mca = mca.fit(X)
 
     # individual loadings onto components

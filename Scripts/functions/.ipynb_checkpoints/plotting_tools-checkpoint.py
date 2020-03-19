@@ -150,7 +150,8 @@ def CCA_UV_plot(cca,mode=0,title=None):
     colors = sns.cm.vlag(x)
     for i in range(len(z)):
         #colors[i, :] = [0.5,0.5,0.5,0]
-        colors[i, 3] = np.float(z[i])/2
+        #colors[i, 3] = np.float(z[i])/2
+        colors[i, 3] = 0.5
     plt.scatter(x, y, s=20, linewidth=0, color=colors)
 
     colors = sns.cm.vlag(y)
