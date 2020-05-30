@@ -8,3 +8,4 @@ from .plotting_tools import *
 from .regression import *
 from .remove_border import *
 from .vanderWaerden_transform import *
+from .plot_connectome_threshold import *

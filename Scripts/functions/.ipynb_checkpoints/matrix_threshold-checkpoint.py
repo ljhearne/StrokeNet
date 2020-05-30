@@ -25,4 +25,6 @@ def matrix_threshold(mat, num_edge=100):
     mat_neg[idx] = mat_vec
 
     mat_new = (mat_pos + mat_pos.T) + (mat_neg + mat_neg.T)
-    return mat_new
+    mat_pos = (mat_pos + mat_pos.T)
+    mat_neg = (mat_neg + mat_neg.T)
+    return mat_new,mat_pos,mat_neg
